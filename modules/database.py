@@ -126,6 +126,31 @@ class Database:
                 allowed_admins TEXT NOT NULL DEFAULT '[]'
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                token TEXT NOT NULL,
+                last_seen TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS node_data (
+                node_id INTEGER NOT NULL,
+                data_type TEXT NOT NULL,
+                data_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (node_id, data_type)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_version (
+                version INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+        cursor.execute("INSERT OR IGNORE INTO config_version (version) VALUES (1)")
         self.conn.commit()
 
     def get_setting(self, key: str) -> str | None:
@@ -629,6 +654,125 @@ class Database:
             (json.dumps(allowed_admins), telegram_id),
         )
         self.conn.commit()
+
+    def add_node(self, name: str, url: str, token: str) -> int:
+        from datetime import datetime, timezone
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO nodes (name, url, token, created_at) VALUES (?, ?, ?, ?)",
+            (name, url, token, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_node(self, node_id: int) -> dict | None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT id, name, url, token, last_seen, created_at FROM nodes WHERE id = ?",
+            (node_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {"id": row[0], "name": row[1], "url": row[2], "token": row[3],
+                "last_seen": row[4], "created_at": row[5]}
+
+    def get_node_by_token(self, token: str) -> dict | None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT id, name, url, token, last_seen, created_at FROM nodes WHERE token = ?",
+            (token,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {"id": row[0], "name": row[1], "url": row[2], "token": row[3],
+                "last_seen": row[4], "created_at": row[5]}
+
+    def get_all_nodes(self) -> list:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, name, url, token, last_seen, created_at FROM nodes ORDER BY id")
+        return [
+            {"id": row[0], "name": row[1], "url": row[2], "token": row[3],
+             "last_seen": row[4], "created_at": row[5]}
+            for row in cursor.fetchall()
+        ]
+
+    def update_node_last_seen(self, node_id: int):
+        from datetime import datetime, timezone
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "UPDATE nodes SET last_seen = ? WHERE id = ?",
+            (datetime.now(timezone.utc).isoformat(), node_id),
+        )
+        self.conn.commit()
+
+    def remove_node(self, node_id: int):
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM nodes WHERE id = ?", (node_id,))
+        cursor.execute("DELETE FROM node_data WHERE node_id = ?", (node_id,))
+        self.conn.commit()
+
+    def upsert_node_data(self, node_id: int, data_type: str, data_json: str):
+        from datetime import datetime, timezone
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO node_data (node_id, data_type, data_json, updated_at) "
+            "VALUES (?, ?, ?, ?)",
+            (node_id, data_type, data_json, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def get_node_data(self, node_id: int, data_type: str) -> dict | None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT data_json, updated_at FROM node_data WHERE node_id = ? AND data_type = ?",
+            (node_id, data_type),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {"data_json": row[0], "updated_at": row[1]}
+
+    def get_all_node_data(self, data_type: str) -> list:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT nd.node_id, n.name, nd.data_json, nd.updated_at "
+            "FROM node_data nd JOIN nodes n ON nd.node_id = n.id "
+            "WHERE nd.data_type = ? ORDER BY n.name",
+            (data_type,),
+        )
+        return [
+            {"node_id": row[0], "node_name": row[1], "data_json": row[2], "updated_at": row[3]}
+            for row in cursor.fetchall()
+        ]
+
+    def get_config_version(self) -> int:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT version FROM config_version LIMIT 1")
+        row = cursor.fetchone()
+        return row[0] if row else 1
+
+    def bump_config_version(self):
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE config_version SET version = version + 1")
+        self.conn.commit()
+
+    def get_master_settings(self) -> dict:
+        return {
+            "interval": self.get_setting("daemon_interval") or "20",
+            "flow_enabled": self.get_setting("flow_enabled") or "false",
+            "flow_value": self.get_setting("flow_value") or "xtls-rprx-vision",
+            "ip_limit_enabled": self.get_setting("ip_limit_enabled") or "false",
+            "counter_enabled": self.get_setting("counter_enabled") or "false",
+            "vcounter_enabled": self.get_setting("vcounter_enabled") or "false",
+            "volume_limit_enabled": self.get_setting("volume_limit_enabled") or "false",
+            "volume_limit_gb": self.get_setting("volume_limit_gb") or "250",
+            "telegram_enabled": self.get_setting("telegram_enabled") or "false",
+            "telegram_token": self.get_setting("telegram_token") or "",
+            "telegram_admin_id": self.get_setting("telegram_admin_id") or "",
+            "config_version": str(self.get_config_version()),
+        }
 
     def close(self):
         self.conn.close()

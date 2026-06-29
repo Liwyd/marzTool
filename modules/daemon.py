@@ -5,6 +5,7 @@ import signal
 import sys
 import tempfile
 import time
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -174,10 +175,12 @@ def _daemon_worker(config_dict: dict):
     telegram_enabled = config_dict.get("telegram_enabled", False)
     volume_limit_enabled = config_dict.get("volume_limit_enabled", False)
     vcounter_enabled = config_dict.get("vcounter_enabled", False)
+    master_enabled = config_dict.get("master_enabled", False)
+    node_enabled = config_dict.get("node_enabled", False)
 
     log.info(
-        "Daemon started. PID=%d  server=%s  flow=%s  ip_limit=%s  counter=%s  telegram=%s  volume_limit=%s  vcounter=%s  interval=%ds",
-        os.getpid(), server_url, flow_enabled, ip_limit_enabled, counter_enabled, telegram_enabled, volume_limit_enabled, vcounter_enabled, interval,
+        "Daemon started. PID=%d  server=%s  flow=%s  ip_limit=%s  counter=%s  telegram=%s  volume_limit=%s  vcounter=%s  master=%s  node=%s  interval=%ds",
+        os.getpid(), server_url, flow_enabled, ip_limit_enabled, counter_enabled, telegram_enabled, volume_limit_enabled, vcounter_enabled, master_enabled, node_enabled, interval,
     )
 
     client = MarzbanClient(server_url, log)
@@ -192,6 +195,37 @@ def _daemon_worker(config_dict: dict):
     flow_setter = FlowSetter(client, log)
     ip_limiter = IPLimiter(client, config, log)
     counter = Counter(client, db, log)
+
+    master_api = None
+    if master_enabled:
+        try:
+            from modules.master_api import MasterAPI
+            master_port = int(config_dict.get("master_port", 8888))
+            master_api = MasterAPI(db, port=master_port, logger=log)
+            master_api.start()
+            log.info("Master API started on port %d", master_port)
+        except Exception as e:
+            log.error("Master API init error: %s", e)
+
+    node_sync = None
+    if node_enabled:
+        try:
+            from modules.node_sync import NodeSync
+            master_url = config_dict.get("master_url", "")
+            node_name = config_dict.get("node_name", "node")
+            node_token = config_dict.get("node_token", "")
+            if master_url:
+                node_sync = NodeSync(master_url, node_name, node_token, logger=log)
+                if not node_token:
+                    token = node_sync.register()
+                    if token:
+                        log.info("Registered with master, token obtained")
+                else:
+                    log.info("Node sync enabled, connecting to master at %s", master_url)
+            else:
+                log.warning("Node enabled but master_url not set")
+        except Exception as e:
+            log.error("Node sync init error: %s", e)
 
     tg_bot = None
     if telegram_enabled:
@@ -352,6 +386,53 @@ def _daemon_worker(config_dict: dict):
             except Exception as e:
                 log.error("Volume limit cycle error: %s", e)
 
+        if node_sync is not None:
+            try:
+                new_config = node_sync.check_config_update()
+                if new_config:
+                    node_sync.apply_config_to_db(db, new_config)
+                    flow_enabled_new = config.get_flow_enabled()
+                    ip_limit_enabled_new = config.get_ip_limit_enabled()
+                    counter_enabled_new = config.get_counter_enabled()
+                    volume_limit_enabled_new = config.get_volume_limit_enabled()
+                    vcounter_enabled_new = config.get_vcounter_enabled()
+                    log.info("Config updated from master")
+
+                if counter_enabled:
+                    ct = db.get_all_counter_totals()
+                    report = counter.get_report(viewer="master")
+                    node_sync.push_counter_data(ct, report)
+                if vcounter_enabled and vcounter is not None:
+                    vt = db.get_all_vcounter_totals()
+                    report = vcounter.get_report(viewer="master")
+                    node_sync.push_vcounter_data(vt, report)
+                node_sync.push_status(
+                    flow_enabled, ip_limit_enabled,
+                    counter_enabled, vcounter_enabled,
+                    volume_limit_enabled, True,
+                )
+            except Exception as e:
+                log.error("Node sync error: %s", e)
+
+        if master_api is not None and node_sync is None:
+            try:
+                if counter_enabled:
+                    ct = db.get_all_counter_totals()
+                    report = counter.get_report(viewer="master")
+                    master_api.db.upsert_node_data(0, "counter", json.dumps({
+                        "totals": ct, "report": report,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+                if vcounter_enabled and vcounter is not None:
+                    vt = db.get_all_vcounter_totals()
+                    report = vcounter.get_report(viewer="master")
+                    master_api.db.upsert_node_data(0, "vcounter", json.dumps({
+                        "totals": vt, "report": report,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+            except Exception as e:
+                log.error("Master self-data error: %s", e)
+
         log.info("Sleeping %ds.", interval)
         time.sleep(interval)
 
@@ -373,6 +454,12 @@ def spawn_daemon(config):
         "telegram_token": config.get_telegram_token(),
         "telegram_admin_id": config.get_telegram_admin_id(),
         "db_path": str(config.db.db_path),
+        "master_enabled": config.get_master_enabled(),
+        "master_port": config.get_master_port(),
+        "node_enabled": config.get_node_enabled(),
+        "node_name": config.get_node_name() or "node",
+        "node_token": config.get_node_token() or "",
+        "master_url": config.get_master_url() or "",
     }
 
     CONFIG_FILE.write_text(json.dumps(config_dict), encoding="utf-8")

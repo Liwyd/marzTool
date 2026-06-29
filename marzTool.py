@@ -7,10 +7,12 @@ A unified tool for managing Marzban panels with features:
   - IP limiting per user with automatic banning
   - Unified daemon for background operation
   - Telegram bot integration
+  - Multi-server master/node management
 
 Usage:
   python marzTool.py          # interactive TUI
   python marzTool.py --auto   # start daemon with current settings
+  python marzTool.py --master # start master API server only
 """
 
 import sys
@@ -44,6 +46,34 @@ def main():
 
     if "--logs" in args:
         view_logs()
+        return
+
+    if "--master" in args:
+        db = Database()
+        config = Config(db)
+        if not config.get_master_enabled():
+            print("  Master mode not enabled. Configure in TUI first.")
+            sys.exit(1)
+        from modules.master_api import MasterAPI
+        import logging
+        log = logging.getLogger("master_standalone")
+        log.setLevel(logging.INFO)
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", "%Y-%m-%d %H:%M:%S"))
+        log.addHandler(h)
+        port = config.get_master_port()
+        api = MasterAPI(db, port=port, logger=log)
+        api.start()
+        print(f"  Master API running on port {port}")
+        print("  Press Ctrl+C to stop.")
+        try:
+            import time
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n  Stopping...")
+            api.stop()
+            db.close()
         return
 
     tui = TUI()

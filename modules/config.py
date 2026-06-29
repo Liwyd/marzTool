@@ -123,6 +123,45 @@ class Config:
     def set_ssh_port(self, port: int):
         self.db.set_setting("ssh_port", str(port))
 
+    def get_master_enabled(self) -> bool:
+        val = self.db.get_setting("master_enabled")
+        return val == "true" if val is not None else False
+
+    def set_master_enabled(self, enabled: bool):
+        self.db.set_setting("master_enabled", "true" if enabled else "false")
+
+    def get_master_port(self) -> int:
+        val = self.db.get_setting("master_port")
+        return int(val) if val is not None else 8888
+
+    def set_master_port(self, port: int):
+        self.db.set_setting("master_port", str(port))
+
+    def get_node_enabled(self) -> bool:
+        val = self.db.get_setting("node_enabled")
+        return val == "true" if val is not None else False
+
+    def set_node_enabled(self, enabled: bool):
+        self.db.set_setting("node_enabled", "true" if enabled else "false")
+
+    def get_node_name(self) -> str | None:
+        return self.db.get_setting("node_name")
+
+    def set_node_name(self, name: str):
+        self.db.set_setting("node_name", name)
+
+    def get_node_token(self) -> str | None:
+        return self.db.get_setting("node_token")
+
+    def set_node_token(self, token: str):
+        self.db.set_setting("node_token", token)
+
+    def get_master_url(self) -> str | None:
+        return self.db.get_setting("master_url")
+
+    def set_master_url(self, url: str):
+        self.db.set_setting("master_url", url)
+
     def get_all_config(self) -> dict:
         return self.db.get_all_settings()
 

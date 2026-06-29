@@ -180,6 +180,176 @@ class TUI:
             print(c("red", f"  FAILED: {msg}"))
         print()
 
+    def _setup_master_node(self):
+        print(c("bold", c("cyan", "\n  === Master / Node Configuration ===")))
+        print()
+        print("  This server can run as:")
+        print(f"  {c('cyan', '1')}.  Master - runs API server, aggregates data from nodes")
+        print(f"  {c('cyan', '2')}.  Node - connects to master, receives config, pushes data")
+        print(f"  {c('cyan', '3')}.  Standalone (default) - no master/node, runs independently")
+        print(f"  {c('cyan', '4')}.  View current mode")
+        print(f"  {c('cyan', '5')}.  Back")
+        print()
+
+        try:
+            choice = int(input("  Choose: ").strip())
+        except (ValueError, EOFError, KeyboardInterrupt):
+            return
+
+        if choice == 1:
+            self._setup_master()
+        elif choice == 2:
+            self._setup_node()
+        elif choice == 3:
+            self.config.set_master_enabled(False)
+            self.config.set_node_enabled(False)
+            print(c("green", "\n  Running in standalone mode."))
+        elif choice == 4:
+            self._show_master_node_status()
+
+    def _setup_master(self):
+        print(c("bold", c("cyan", "\n  === Setup Master Mode ===")))
+        print("  Master runs an HTTP API server that nodes connect to.")
+        print("  Master aggregates counter/vcounter/volume data from all nodes.")
+        print()
+
+        enabled = self.config.get_master_enabled()
+        current = "ON" if enabled else "OFF"
+        print(f"  Current status: {c('green' if enabled else 'dim', current)}")
+
+        enable = self._ask("Enable master mode? (y/n)", "y" if enabled else "n")
+        if enable.lower() == "y":
+            port = self._ask("API port", str(self.config.get_master_port()))
+            self.config.set_master_port(int(port))
+            self.config.set_master_enabled(True)
+            self.config.set_node_enabled(False)
+            print(c("green", f"\n  Master mode enabled on port {port}."))
+            print(c("dim", "  Start the daemon to activate the master API."))
+        else:
+            self.config.set_master_enabled(False)
+            print(c("green", "\n  Master mode disabled."))
+
+    def _setup_node(self):
+        print(c("bold", c("cyan", "\n  === Setup Node Mode ===")))
+        print("  Node connects to a master server for config and pushes data.")
+        print()
+
+        enabled = self.config.get_node_enabled()
+        current = "ON" if enabled else "OFF"
+        print(f"  Current status: {c('green' if enabled else 'dim', current)}")
+
+        enable = self._ask("Enable node mode? (y/n)", "y" if enabled else "n")
+        if enable.lower() == "y":
+            saved_url = self.config.get_master_url() or ""
+            saved_name = self.config.get_node_name() or ""
+
+            url = self._ask("Master URL (e.g. http://master-ip:8888)", saved_url)
+            name = self._ask("Node name (for identification)", saved_name or "node1")
+
+            self.config.set_master_url(url)
+            self.config.set_node_name(name)
+            self.config.set_node_enabled(True)
+            self.config.set_master_enabled(False)
+            print(c("green", f"\n  Node mode enabled. Name: {name}"))
+            print(c("dim", "  Node will register with master on first daemon start."))
+        else:
+            self.config.set_node_enabled(False)
+            print(c("green", "\n  Node mode disabled."))
+
+    def _show_master_node_status(self):
+        print(c("bold", c("cyan", "\n  === Master / Node Status ===")))
+        master_on = self.config.get_master_enabled()
+        node_on = self.config.get_node_enabled()
+
+        if master_on:
+            print(f"  Mode: {c('green', 'MASTER')}")
+            print(f"  API Port: {self.config.get_master_port()}")
+            nodes = self.db.get_all_nodes()
+            print(f"  Registered nodes: {len(nodes)}")
+            for n in nodes:
+                status = c("dim", "offline")
+                if n["last_seen"]:
+                    try:
+                        from datetime import datetime, timezone
+                        seen = datetime.fromisoformat(n["last_seen"])
+                        delta = datetime.now(timezone.utc) - seen
+                        if delta.total_seconds() < 120:
+                            status = c("green", "online")
+                    except Exception:
+                        pass
+                print(f"    - {n['name']} (id={n['id']}) {status}")
+        elif node_on:
+            print(f"  Mode: {c('green', 'NODE')}")
+            print(f"  Node name: {self.config.get_node_name() or 'not set'}")
+            print(f"  Master URL: {self.config.get_master_url() or 'not set'}")
+            token = self.config.get_node_token()
+            print(f"  Token: {'configured' if token else 'not registered yet'}")
+        else:
+            print(f"  Mode: {c('dim', 'STANDALONE')}")
+        print()
+
+    def _view_dashboard(self):
+        print(c("bold", c("cyan", "\n  === Multi-Server Dashboard ===")))
+        import json
+        GB = 1024 * 1024 * 1024
+
+        counter_data = self.db.get_all_node_data("counter")
+        vcounter_data = self.db.get_all_node_data("vcounter")
+        volume_data = self.db.get_all_node_data("volume")
+        nodes = self.db.get_all_nodes()
+
+        if not nodes:
+            print("  No nodes registered yet.")
+            return
+
+        print(f"\n  {'Node':<25} {'Status':<10} {'Counter':<10} {'Volume (GB)':<15}")
+        print(f"  {'-'*25} {'-'*10} {'-'*10} {'-'*15}")
+
+        total_counter = 0
+        total_vcounter = 0
+
+        node_status = {}
+        for n in nodes:
+            node_status[n["id"]] = {"name": n["name"], "online": False, "counter": 0, "vcounter_bytes": 0}
+            if n["last_seen"]:
+                try:
+                    from datetime import datetime, timezone
+                    seen = datetime.fromisoformat(n["last_seen"])
+                    delta = datetime.now(timezone.utc) - seen
+                    node_status[n["id"]]["online"] = delta.total_seconds() < 120
+                except Exception:
+                    pass
+
+        for entry in counter_data:
+            nid = entry["node_id"]
+            if nid in node_status:
+                try:
+                    data = json.loads(entry["data_json"])
+                    node_status[nid]["counter"] = data.get("report", {}).get("total", 0)
+                except Exception:
+                    pass
+
+        for entry in vcounter_data:
+            nid = entry["node_id"]
+            if nid in node_status:
+                try:
+                    data = json.loads(entry["data_json"])
+                    node_status[nid]["vcounter_bytes"] = data.get("report", {}).get("total_bytes", 0)
+                except Exception:
+                    pass
+
+        for ns in node_status.values():
+            status_str = c("green", "online") if ns["online"] else c("dim", "offline")
+            ct = ns["counter"]
+            vb = ns["vcounter_bytes"]
+            total_counter += ct
+            total_vcounter += vb
+            print(f"  {ns['name']:<25} {status_str:<10} {ct:<10} {vb / GB:<15.2f}")
+
+        print(f"  {'-'*25} {'-'*10} {'-'*10} {'-'*15}")
+        print(f"  {'TOTAL':<25} {'':<10} {total_counter:<10} {total_vcounter / GB:<15.2f}")
+        print()
+
     def _setup_ip_limit(self):
         print(c("bold", c("cyan", "\n  === IP Limit Configuration ===")))
 
@@ -654,6 +824,9 @@ class TUI:
             options.append(("View settings", "settings"))
             options.append(("Telegram setup", "telegram"))
             options.append(("Test Telegram connection", "test_telegram"))
+            options.append(("Master / Node configuration", "master_node"))
+            if self.config.get_master_enabled():
+                options.append(("View multi-server dashboard", "dashboard"))
             options.append(("Exit", "exit"))
 
             choice = self._menu(options)
@@ -745,4 +918,12 @@ class TUI:
 
             elif action == "test_telegram":
                 self._test_telegram()
+                input("\n  [Enter to continue] ")
+
+            elif action == "master_node":
+                self._setup_master_node()
+                input("\n  [Enter to continue] ")
+
+            elif action == "dashboard":
+                self._view_dashboard()
                 input("\n  [Enter to continue] ")
