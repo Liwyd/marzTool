@@ -984,7 +984,6 @@ class TelegramBot:
                     d = _db()
                     try:
                         cursor = d.conn.cursor()
-                        cursor.execute("DELETE FROM vcounter_users")
                         cursor.execute("DELETE FROM vcounter_totals")
                         d.conn.commit()
                     finally:

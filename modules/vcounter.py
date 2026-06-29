@@ -3,8 +3,6 @@ from datetime import datetime, timezone
 
 
 class VCounter:
-    TRAFFIC_THRESHOLD = 500 * 1024 * 1024
-
     def __init__(self, client, db, logger: logging.Logger = None):
         self.client = client
         self.db = db
@@ -13,8 +11,8 @@ class VCounter:
     def sync(self, users: list = None):
         if users is None:
             users = self.client.get_all_users()
-        now = datetime.now(timezone.utc).isoformat()
-        panel_usernames = set()
+
+        admin_totals = {}
 
         for user in users:
             username = user.get("username", "")
@@ -29,75 +27,17 @@ class VCounter:
             if data_limit == 0:
                 continue
 
-            used_traffic = user.get("used_traffic", 0) or 0
-            lifetime_used = user.get("lifetime_used_traffic", 0) or 0
-            total_traffic = max(used_traffic, lifetime_used)
-            created_at = user.get("created_at", "")
+            if admin_username not in admin_totals:
+                admin_totals[admin_username] = 0
+            admin_totals[admin_username] += data_limit
 
-            existing = self.db.get_vcounter_user(username, created_at)
+        for admin_username, total_bytes in admin_totals.items():
+            self.db.set_vcounter_total(admin_username, total_bytes)
 
-            if not existing:
-                prev = self.db.get_vcounter_user_by_username(username)
-                if prev and prev.get("created_at", "") != created_at:
-                    self._count_entry(prev, prev.get("prev_traffic", 0), now)
-                    self.log.info(
-                        "VCounter: finalized old %s (admin=%s) — recreated",
-                        username, admin_username,
-                    )
-                self.db.upsert_vcounter_user(
-                    username, created_at, admin_username,
-                    data_limit, 0, total_traffic, now,
-                )
-                panel_usernames.add(username)
-                continue
-
-            prev_traffic = existing.get("prev_traffic", 0)
-            counted_traffic = existing.get("counted_traffic", 0)
-
-            if total_traffic < prev_traffic * 0.1 and prev_traffic >= self.TRAFFIC_THRESHOLD:
-                self._count_entry(existing, prev_traffic, now)
-                self.log.info(
-                    "VCounter: counted %s (admin=%s) — reset detected",
-                    username, admin_username,
-                )
-                self.db.upsert_vcounter_user(
-                    username, now, admin_username,
-                    data_limit, 0, total_traffic, now,
-                )
-                panel_usernames.add(username)
-                continue
-
-            delta = total_traffic - counted_traffic
-            if delta >= self.TRAFFIC_THRESHOLD:
-                self.db.add_vcounter_volume(admin_username, delta)
-                self.db.upsert_vcounter_user(
-                    username, created_at, admin_username,
-                    data_limit, total_traffic, total_traffic, now,
-                )
-                self.log.info(
-                    "VCounter: +%dMB for %s (admin=%s) — total now tracked",
-                    delta // (1024 * 1024), username, admin_username,
-                )
-            else:
-                self.db.upsert_vcounter_user(
-                    username, created_at, admin_username,
-                    data_limit, counted_traffic, total_traffic, now,
-                )
-
-            panel_usernames.add(username)
-
-        self.log.info("VCounter sync complete. %d configs active.", len(panel_usernames))
-
-    def _count_entry(self, entry: dict, traffic: int, now: str):
-        admin_username = entry.get("admin_username", "")
-        data_limit = entry.get("initial_data_limit", 0)
-        counted_traffic = entry.get("counted_traffic", 0)
-        remaining = traffic - counted_traffic
-        if remaining > 0:
-            self.db.add_vcounter_volume(admin_username, remaining)
-        self.db.upsert_vcounter_user(
-            entry["username"], entry["created_at"], admin_username,
-            data_limit, traffic, traffic, now,
+        self.log.info(
+            "VCounter sync complete. %d admins, %d configs with data_limit.",
+            len(admin_totals),
+            sum(1 for u in (users or []) if (u.get("data_limit") or 0) > 0),
         )
 
     def get_report(self, admin_username: str = None, viewer: str = None) -> dict:
