@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+/tmp/
+/var/log/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Database files
+*.sqlite
+*.db
+marztool.db
+
+# Configuration files that may contain sensitive info
+config.json
+*.config.json
+telegram_config.json
+marzban_config.json
+
+# Process ID files
+/tmp/marztool_daemon.pid
+/tmp/marztool_daemon.log
+
+# Local config files
+.local/
+*.local
+settings.json
+.env
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+iTunes_Control.db
+
+# Blocked IPs (runtime data)
+blocked_ips.csv
