@@ -3,7 +3,7 @@ set -e
 
 REPO="liwyd/marzTool"
 INSTALL_DIR="/opt/martool"
-PYTHON_MIN="3.10"
+SYMLINK="/usr/local/bin/marztool"
 
 echo "========================================"
 echo "  MarzTool Installer"
@@ -32,18 +32,22 @@ install_deps() {
     echo "  Dependencies installed."
 }
 
+install_deps_flask() {
+    echo "  Installing Flask (for master mode)..."
+    $PY -m pip install --quiet --break-system-packages flask 2>/dev/null || \
+    $PY -m pip install --quiet flask
+    echo "  Flask installed."
+}
+
 setup_master() {
     echo ""
     echo "--- Master Setup ---"
     echo "  Master runs an HTTP API server on port 8888."
     echo "  Nodes will connect to this server for config."
     echo ""
-    read -p "  Master API port [8888]: " PORT
+    read -r -p "  Master API port [8888]: " PORT </dev/tty
     PORT=${PORT:-8888}
     echo "  Master will run on port $PORT"
-    echo ""
-    echo "  Starting master mode..."
-    echo "  Run 'python3 marzTool.py' to configure, then 'python3 marzTool.py --master' to start."
     echo ""
 }
 
@@ -52,13 +56,18 @@ setup_node() {
     echo "--- Node Setup ---"
     echo "  Node connects to a master server."
     echo ""
-    read -p "  Master URL (e.g. http://master-ip:8888): " MASTER_URL
-    read -p "  Node name (for identification): " NODE_NAME
+    read -r -p "  Master URL (e.g. http://master-ip:8888): " MASTER_URL </dev/tty
+    read -r -p "  Node name (for identification): " NODE_NAME </dev/tty
     NODE_NAME=${NODE_NAME:-"node1"}
     echo "  Node will connect to: $MASTER_URL"
     echo "  Node name: $NODE_NAME"
-    echo ""
-    echo "  Run 'python3 marzTool.py' to configure, then 'python3 marzTool.py --auto' to start."
+
+    mkdir -p "$INSTALL_DIR"
+    cat > "$INSTALL_DIR/.node_config" <<EOF
+master_url=$MASTER_URL
+node_name=$NODE_NAME
+EOF
+    echo "  Node config saved."
     echo ""
 }
 
@@ -68,7 +77,7 @@ echo "  1.  Standalone (default) - single server, no master/node"
 echo "  2.  Master - runs API server, aggregates data from nodes"
 echo "  3.  Node - connects to master, receives config, pushes data"
 echo ""
-read -p "  Choose [1]: " INSTALL_TYPE
+read -r -p "  Choose [1]: " INSTALL_TYPE </dev/tty
 INSTALL_TYPE=${INSTALL_TYPE:-1}
 
 echo ""
@@ -92,6 +101,7 @@ install_deps
 
 case $INSTALL_TYPE in
     2)
+        install_deps_flask
         setup_master
         ;;
     3)
@@ -99,14 +109,26 @@ case $INSTALL_TYPE in
         ;;
     *)
         echo ""
-        echo "  Standalone mode. Run 'python3 marzTool.py' to start."
+        echo "  Standalone mode."
         ;;
 esac
 
+echo ""
+echo "Creating 'marztool' command..."
+cat > /tmp/marztool_cmd <<'WRAPPER'
+#!/bin/bash
+exec python3 /opt/martool/marzTool.py "$@"
+WRAPPER
+cp /tmp/marztool_cmd "$SYMLINK"
+chmod +x "$SYMLINK"
+rm -f /tmp/marztool_cmd
+echo "  'marztool' command installed to $SYMLINK"
+
+echo ""
 echo "========================================"
 echo "  Installation complete!"
 echo "========================================"
 echo ""
 echo "  Location: $INSTALL_DIR"
-echo "  Run:      python3 marzTool.py"
+echo "  Run:      marztool"
 echo ""
