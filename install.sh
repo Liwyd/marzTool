@@ -27,15 +27,19 @@ check_python() {
 
 install_deps() {
     echo "  Installing dependencies..."
-    $PY -m pip install --quiet --break-system-packages requests 2>/dev/null || \
-    $PY -m pip install --quiet requests
+    $PY -m pip install --break-system-packages --quiet requests 2>/dev/null || \
+    $PY -m pip install --break-system-packages requests 2>/dev/null || \
+    $PY -m pip install --quiet requests 2>/dev/null || \
+    echo "  WARNING: Could not install requests. Run manually: pip install requests"
     echo "  Dependencies installed."
 }
 
 install_deps_flask() {
     echo "  Installing Flask (for web dashboard and master mode)..."
-    $PY -m pip install --quiet --break-system-packages flask 2>/dev/null || \
-    $PY -m pip install --quiet flask
+    $PY -m pip install --break-system-packages --quiet flask 2>/dev/null || \
+    $PY -m pip install --break-system-packages flask 2>/dev/null || \
+    $PY -m pip install --quiet flask 2>/dev/null || \
+    echo "  WARNING: Could not install Flask. Run manually: pip install flask"
     echo "  Flask installed."
 }
 
@@ -86,6 +90,10 @@ check_python
 
 echo ""
 echo "Installing MarzTool..."
+
+echo "  Upgrading pip..."
+$PY -m pip install --break-system-packages --upgrade pip 2>/dev/null || true
+
 if [ -d "$INSTALL_DIR" ]; then
     echo "  Updating existing installation..."
     cd "$INSTALL_DIR"

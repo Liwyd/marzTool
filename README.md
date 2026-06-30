@@ -21,8 +21,8 @@ curl -sSL https://raw.githubusercontent.com/liwyd/marzTool/main/install.sh | bas
 Or clone manually:
 
 ```bash
-git clone https://github.com/liwyd/marzTool.git /opt/martool
-cd /opt/martool
+git clone https://github.com/liwyd/marzTool.git /opt/marztool
+cd /opt/marztool
 pip install requests
 python3 marzTool.py
 ```
