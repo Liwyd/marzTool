@@ -172,6 +172,19 @@ class Database:
         cursor.execute("SELECT key, value FROM settings")
         return {row[0]: row[1] for row in cursor.fetchall()}
 
+    def cache_users(self, users_json: str):
+        self.set_setting("_cached_users", users_json)
+
+    def get_cached_users(self) -> list:
+        import json as _json
+        val = self.get_setting("_cached_users")
+        if val:
+            try:
+                return _json.loads(val)
+            except Exception:
+                pass
+        return []
+
     def get_ip_limit(self, email: str) -> int:
         cursor = self.conn.cursor()
         cursor.execute(

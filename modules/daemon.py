@@ -268,6 +268,11 @@ def _daemon_worker(config_dict: dict):
         try:
             users = client.get_all_users()
             log.info("Fetched %d users.", len(users))
+            try:
+                import json as _json
+                db.cache_users(_json.dumps(users))
+            except Exception:
+                pass
         except Exception as e:
             log.error("Fetch users failed: %s", e)
             try:
@@ -275,6 +280,11 @@ def _daemon_worker(config_dict: dict):
                 log.info("Re-login OK.")
                 users = client.get_all_users()
                 log.info("Fetched %d users (after re-login).", len(users))
+                try:
+                    import json as _json
+                    db.cache_users(_json.dumps(users))
+                except Exception:
+                    pass
             except Exception as re:
                 log.error("Re-login failed: %s. Skipping cycle.", re)
                 log.info("Sleeping %ds.", interval)

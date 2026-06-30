@@ -65,19 +65,7 @@ class WebDashboard:
 
         @app.route("/api/summary")
         def api_summary():
-            client = dash._get_client()
-            users = []
-            if client:
-                try:
-                    users = client.get_all_users()
-                except PermissionError:
-                    dash._relogin()
-                    try:
-                        users = client.get_all_users()
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
+            users = db.get_cached_users()
 
             total_users = len(users)
             active_users = sum(1 for u in users if u.get("status") == "active")
@@ -421,10 +409,7 @@ class WebDashboard:
 
         @app.route("/api/users")
         def api_users():
-            client = dash._get_client()
-            if not client:
-                return jsonify({"error": "not connected"}), 400
-            users = client.get_all_users()
+            users = db.get_cached_users()
             result = []
             for u in users:
                 a = u.get("admin") or {}
