@@ -37,12 +37,21 @@ class WebDashboard:
         try:
             if self._client is None:
                 self._client = MarzbanClient(url, self.log)
-            self._client.login(username, password)
+                self._client.login(username, password)
             return self._client
         except Exception as e:
             self.log.error("Marzban login failed: %s", e)
             self._client = None
             return None
+
+    def _relogin(self):
+        username = self.config.get_username()
+        password = self.config.get_password()
+        if self._client and username and password:
+            try:
+                self._client.login(username, password)
+            except Exception:
+                self._client = None
 
     def _build_app(self) -> Flask:
         app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -61,6 +70,12 @@ class WebDashboard:
             if client:
                 try:
                     users = client.get_all_users()
+                except PermissionError:
+                    dash._relogin()
+                    try:
+                        users = client.get_all_users()
+                    except Exception:
+                        pass
                 except Exception:
                     pass
 

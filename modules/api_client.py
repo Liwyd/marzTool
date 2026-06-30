@@ -49,6 +49,15 @@ class MarzbanClient:
         resp.raise_for_status()
         return resp.json()
 
+    def _get_with_relogin(self, path: str, username: str = None, password: str = None, **kwargs) -> dict:
+        try:
+            return self._get(path, **kwargs)
+        except PermissionError:
+            if username and password:
+                self.login(username, password)
+                return self._get(path, **kwargs)
+            raise
+
     def _put(self, path: str, payload: dict) -> dict:
         resp = self.session.put(
             f"{self.base_url}{path}",
