@@ -212,18 +212,69 @@
       </div>
       <div class="card mt-16">
         <h2>Features</h2>
-        <div class="form-grid">
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setFlow"> Flow updater</label></div>
-          <div class="form-group"><label>Flow Value</label><input type="text" id="setFlowVal" class="input" value="xtls-rprx-vision"></div>
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setIp"> IP limiter</label></div>
-          <div class="form-group"><label>Max IPs</label><input type="number" id="setIpAll" class="input" value="1"></div>
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setCounter"> Counter</label></div>
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setVcounter"> VCounter</label></div>
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setVol"> Volume limit</label></div>
-          <div class="form-group"><label>Volume limit (GB)</label><input type="number" id="setVolGb" class="input" value="250"></div>
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setTg"> Telegram</label></div>
-          <div class="form-group"><label>Bot Token</label><input type="text" id="setTgToken" class="input"></div>
-          <div class="form-group"><label>Admin Chat ID</label><input type="text" id="setTgAdmin" class="input"></div>
+        <div class="feature-list">
+          <div class="feature-row">
+            <div class="feature-info">
+              <span class="feature-name">Flow Updater</span>
+              <span class="feature-desc">Set xtls-rprx-vision on all VLESS users</span>
+            </div>
+            <button class="toggle-btn" id="setFlow" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="feature-row" id="flowValueRow" style="display:none">
+            <div class="feature-info"><span class="feature-name">Flow Value</span></div>
+            <input type="text" id="setFlowVal" class="input input-sm" value="xtls-rprx-vision">
+          </div>
+          <div class="feature-row">
+            <div class="feature-info">
+              <span class="feature-name">IP Limiter</span>
+              <span class="feature-desc">Limit IPs per user with iptables</span>
+            </div>
+            <button class="toggle-btn" id="setIp" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="feature-row" id="ipValueRow" style="display:none">
+            <div class="feature-info"><span class="feature-name">Max IPs per user</span></div>
+            <input type="number" id="setIpAll" class="input input-sm" value="1">
+          </div>
+          <div class="feature-row">
+            <div class="feature-info">
+              <span class="feature-name">Counter</span>
+              <span class="feature-desc">Count users per admin (500MB threshold)</span>
+            </div>
+            <button class="toggle-btn" id="setCounter" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="feature-row">
+            <div class="feature-info">
+              <span class="feature-name">VCounter</span>
+              <span class="feature-desc">Track volume per admin (data_limit sum)</span>
+            </div>
+            <button class="toggle-btn" id="setVcounter" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="feature-row">
+            <div class="feature-info">
+              <span class="feature-name">Volume Limit</span>
+              <span class="feature-desc">Disable users exceeding GB limit</span>
+            </div>
+            <button class="toggle-btn" id="setVol" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="feature-row" id="volValueRow" style="display:none">
+            <div class="feature-info"><span class="feature-name">Volume limit (GB)</span></div>
+            <input type="number" id="setVolGb" class="input input-sm" value="250">
+          </div>
+          <div class="feature-row">
+            <div class="feature-info">
+              <span class="feature-name">Telegram Bot</span>
+              <span class="feature-desc">Notifications and inline keyboard menus</span>
+            </div>
+            <button class="toggle-btn" id="setTg" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="feature-row" id="tgValueRow" style="display:none">
+            <div class="feature-info"><span class="feature-name">Bot Token</span></div>
+            <input type="text" id="setTgToken" class="input" placeholder="123456:ABC-DEF...">
+          </div>
+          <div class="feature-row" id="tgAdminRow" style="display:none">
+            <div class="feature-info"><span class="feature-name">Admin Chat ID</span></div>
+            <input type="text" id="setTgAdmin" class="input" placeholder="123456789">
+          </div>
         </div>
       </div>
       <div class="card mt-16">

@@ -329,6 +329,20 @@ async function testTelegram(){
   document.getElementById('tgResult').innerHTML=d.ok?`<p style="color:var(--success)">${d.message}</p>`:`<p style="color:var(--danger)">${d.message}</p>`;
 }
 
+function toggleFeature(btn){
+  btn.classList.toggle('on');
+  updateFeatureSubRows();
+}
+
+function updateFeatureSubRows(){
+  document.getElementById('flowValueRow').style.display=document.getElementById('setFlow').classList.contains('on')?'flex':'none';
+  document.getElementById('ipValueRow').style.display=document.getElementById('setIp').classList.contains('on')?'flex':'none';
+  document.getElementById('volValueRow').style.display=document.getElementById('setVol').classList.contains('on')?'flex':'none';
+  const tgOn=document.getElementById('setTg').classList.contains('on');
+  document.getElementById('tgValueRow').style.display=tgOn?'flex':'none';
+  document.getElementById('tgAdminRow').style.display=tgOn?'flex':'none';
+}
+
 // SETTINGS
 async function loadSettings(){
   const d=await api('/api/settings');
@@ -336,14 +350,14 @@ async function loadSettings(){
   document.getElementById('setUrl').value=d.server_url||'';
   document.getElementById('setUser').value=d.username||'';
   document.getElementById('setFlowVal').value=d.flow_value||'xtls-rprx-vision';
-  document.getElementById('setFlow').checked=d.flow_enabled;
-  document.getElementById('setIp').checked=d.ip_limit_enabled;
+  setToggle('setFlow',d.flow_enabled);
+  setToggle('setIp',d.ip_limit_enabled);
   document.getElementById('setIpAll').value=d.ip_limit_all||1;
-  document.getElementById('setCounter').checked=d.counter_enabled;
-  document.getElementById('setVcounter').checked=d.vcounter_enabled;
-  document.getElementById('setVol').checked=d.volume_limit_enabled;
+  setToggle('setCounter',d.counter_enabled);
+  setToggle('setVcounter',d.vcounter_enabled);
+  setToggle('setVol',d.volume_limit_enabled);
   document.getElementById('setVolGb').value=d.volume_limit_gb||250;
-  document.getElementById('setTg').checked=d.telegram_enabled;
+  setToggle('setTg',d.telegram_enabled);
   document.getElementById('setTgToken').value=d.telegram_token||'';
   document.getElementById('setTgAdmin').value=d.telegram_admin_id||'';
   document.getElementById('setInterval').value=d.daemon_interval||20;
@@ -351,6 +365,17 @@ async function loadSettings(){
   document.getElementById('setSshPort').value=d.ssh_port||22;
   document.getElementById('setSslCert').value=d.ssl_cert||'';
   document.getElementById('setSslKey').value=d.ssl_key||'';
+  updateFeatureSubRows();
+}
+
+function setToggle(id,on){
+  const btn=document.getElementById(id);
+  if(on)btn.classList.add('on');
+  else btn.classList.remove('on');
+}
+
+function getToggle(id){
+  return document.getElementById(id).classList.contains('on');
 }
 
 async function saveSettings(){
@@ -359,14 +384,14 @@ async function saveSettings(){
     server_url:document.getElementById('setUrl').value,
     username:document.getElementById('setUser').value,
     flow_value:document.getElementById('setFlowVal').value,
-    flow_enabled:document.getElementById('setFlow').checked,
-    ip_limit_enabled:document.getElementById('setIp').checked,
+    flow_enabled:getToggle('setFlow'),
+    ip_limit_enabled:getToggle('setIp'),
     ip_limit_all:parseInt(document.getElementById('setIpAll').value),
-    counter_enabled:document.getElementById('setCounter').checked,
-    vcounter_enabled:document.getElementById('setVcounter').checked,
-    volume_limit_enabled:document.getElementById('setVol').checked,
+    counter_enabled:getToggle('setCounter'),
+    vcounter_enabled:getToggle('setVcounter'),
+    volume_limit_enabled:getToggle('setVol'),
     volume_limit_gb:parseInt(document.getElementById('setVolGb').value),
-    telegram_enabled:document.getElementById('setTg').checked,
+    telegram_enabled:getToggle('setTg'),
     telegram_token:document.getElementById('setTgToken').value,
     telegram_admin_id:document.getElementById('setTgAdmin').value,
     daemon_interval:parseInt(document.getElementById('setInterval').value),

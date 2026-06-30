@@ -363,6 +363,52 @@ select.input{cursor:pointer;}
   cursor:pointer;
 }
 
+/* FEATURE TOGGLE LIST */
+.feature-list{display:flex;flex-direction:column;gap:2px;}
+
+.feature-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 16px;
+  border-radius:var(--radius-sm);
+  transition:var(--transition);
+}
+
+.feature-row:hover{background:var(--hover);}
+
+.feature-info{display:flex;flex-direction:column;gap:2px;}
+.feature-name{font-size:14px;font-weight:500;color:var(--text);}
+.feature-desc{font-size:11px;color:var(--text2);}
+
+.toggle-btn{
+  position:relative;
+  width:48px;
+  height:26px;
+  border-radius:13px;
+  border:none;
+  cursor:pointer;
+  background:var(--bg3);
+  transition:var(--transition);
+  flex-shrink:0;
+}
+
+.toggle-btn.on{background:var(--primary);}
+
+.toggle-knob{
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:#fff;
+  transition:var(--transition);
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+
+.toggle-btn.on .toggle-knob{left:25px;}
+
 /* LOG BOX */
 .log-box{
   background:rgba(0,0,0,.2);
