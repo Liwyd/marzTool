@@ -95,24 +95,15 @@ class TUI:
             print()
             return default
 
-    def _menu(self, options: list) -> int:
-        real_idx = 0
-        for item in options:
-            if isinstance(item, tuple) and item[0] and item[1]:
-                real_idx += 1
-                print(f"  {c('cyan', str(real_idx))}.  {item[0]}")
-            elif isinstance(item, str) and item.startswith("---"):
-                print(f"\n  {c('dim', item)}")
+    def _menu(self, options: list[tuple[str, str]]) -> int:
+        for i, (label, _) in enumerate(options, 1):
+            print(f"  {c('cyan', str(i))}.  {label}")
         print()
         try:
             raw = input("  Choose: ").strip()
             n = int(raw)
-            real_idx = 0
-            for item in options:
-                if isinstance(item, tuple) and item[0] and item[1]:
-                    real_idx += 1
-                    if real_idx == n:
-                        return options.index(item) + 1
+            if 1 <= n <= len(options):
+                return n
         except (ValueError, EOFError, KeyboardInterrupt):
             pass
         return 0
@@ -856,64 +847,27 @@ class TUI:
             self._banner()
             pid = daemon_pid()
 
-            options = [
+            main_options = [
                 ("Panel connection (setup wizard)", "setup"),
                 ("Toggle features on/off", "toggle"),
-                "",
-                "--- VLESS Flow ---",
-                ("Configure flow mode (set / clear)", "flow_config"),
-                ("Apply flow now (set xtls-rprx-vision)", "flow_set"),
-                ("Apply flow now (clear / unset)", "flow_clear"),
-                "",
-                "--- IP Limiter ---",
-                ("IP limit settings", "ip_config"),
-                ("Manage per-user IP limits", "ip_manage"),
-                ("Run IP limiter now", "ip_once"),
-                "",
-                "--- User Counter ---",
-                ("View counter report", "counter_view"),
-                ("Reset counter", "counter_reset"),
-                "",
-                "--- Bandwidth Tracker ---",
-                ("View bandwidth report", "vcounter_view"),
-                "",
-                "--- Traffic Limiter ---",
-                ("Traffic limit settings", "vl_config"),
-                ("Manage exempt users", "vl_exempt_list"),
-                "",
-                "--- Settlements ---",
-                ("Settle counter / bandwidth", "settle"),
+                ("VLESS Flow", "submenu_flow"),
+                ("IP Limiter", "submenu_ip"),
+                ("User Counter", "submenu_counter"),
+                ("Bandwidth Tracker", "submenu_bw"),
+                ("Traffic Limiter", "submenu_traffic"),
+                ("Settlements", "settle"),
+                ("Services (daemon / web)", "submenu_services"),
+                ("Settings & Telegram", "submenu_settings"),
+                ("Web dashboard", "web_dashboard"),
+                ("Update (git pull)", "update"),
+                ("Exit", "exit"),
             ]
 
-            if pid:
-                options.append("")
-                options.append("--- Services ---")
-                options.append(("Stop daemon", "daemon_stop"))
-                options.append(("View daemon logs", "daemon_logs"))
-            else:
-                options.append("")
-                options.append("--- Services ---")
-                options.append(("Start daemon", "daemon_start"))
-
-            options.extend([
-                "",
-                "--- System ---",
-                ("View settings", "settings"),
-                ("Telegram setup", "telegram"),
-                ("Test Telegram connection", "test_telegram"),
-                ("Master / Node configuration", "master_node"),
-            ])
-            if self.config.get_master_enabled():
-                options.append(("View multi-server dashboard", "dashboard"))
-            options.append(("Web dashboard", "web_dashboard"))
-            options.append(("Update (git pull)", "update"))
-            options.append(("", "exit"))
-
-            choice = self._menu(options)
+            choice = self._menu(main_options)
             if choice == 0:
                 continue
 
-            action = options[choice - 1][1]
+            action = main_options[choice - 1][1]
 
             if action == "exit":
                 print("\n  Goodbye.\n")
@@ -924,89 +878,34 @@ class TUI:
                 self._setup_wizard()
                 input("\n  [Enter to continue] ")
 
-            elif action == "flow_config":
-                self._configure_flow()
-                input("\n  [Enter to continue] ")
-
-            elif action == "flow_set":
-                self._run_flow_once(set_mode=True)
-                input("\n  [Enter to continue] ")
-
-            elif action == "flow_clear":
-                self._run_flow_once(set_mode=False)
-                input("\n  [Enter to continue] ")
-
             elif action == "toggle":
                 self._toggle_features()
                 input("\n  [Enter to continue] ")
 
-            elif action == "ip_config":
-                self._setup_ip_limit()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_flow":
+                self._submenu_flow()
 
-            elif action == "ip_manage":
-                self._manage_ip_limits()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_ip":
+                self._submenu_ip()
 
-            elif action == "ip_once":
-                self._run_ip_limit_once()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_counter":
+                self._submenu_counter()
 
-            elif action == "vl_config":
-                self._setup_volume_limit()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_bw":
+                self._submenu_bw()
 
-            elif action == "vl_exempt_list":
-                self._manage_exempt_list()
-                input("\n  [Enter to continue] ")
-
-            elif action == "vcounter_view":
-                self._view_vcounter()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_traffic":
+                self._submenu_traffic()
 
             elif action == "settle":
                 self._settle()
                 input("\n  [Enter to continue] ")
 
-            elif action == "counter_view":
-                self._view_counter()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_services":
+                self._submenu_services()
 
-            elif action == "counter_reset":
-                self._reset_counter()
-                input("\n  [Enter to continue] ")
-
-            elif action == "daemon_start":
-                self._start_daemon()
-                input("\n  [Enter to continue] ")
-
-            elif action == "daemon_stop":
-                stop_daemon()
-                input("\n  [Enter to continue] ")
-
-            elif action == "daemon_logs":
-                view_logs()
-                input("\n  [Enter to continue] ")
-
-            elif action == "settings":
-                self._view_settings()
-                input("\n  [Enter to continue] ")
-
-            elif action == "telegram":
-                self._setup_telegram()
-                input("\n  [Enter to continue] ")
-
-            elif action == "test_telegram":
-                self._test_telegram()
-                input("\n  [Enter to continue] ")
-
-            elif action == "master_node":
-                self._setup_master_node()
-                input("\n  [Enter to continue] ")
-
-            elif action == "dashboard":
-                self._view_dashboard()
-                input("\n  [Enter to continue] ")
+            elif action == "submenu_settings":
+                self._submenu_settings()
 
             elif action == "web_dashboard":
                 self._start_web_dashboard()
@@ -1015,3 +914,150 @@ class TUI:
             elif action == "update":
                 self._update_tool()
                 input("\n  [Enter to continue] ")
+
+    def _submenu_flow(self):
+        options = [
+            ("Configure flow mode (set / clear)", "flow_config"),
+            ("Apply flow now (set xtls-rprx-vision)", "flow_set"),
+            ("Apply flow now (clear / unset)", "flow_clear"),
+            ("Back", "back"),
+        ]
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "flow_config":
+            self._configure_flow()
+            input("\n  [Enter to continue] ")
+        elif action == "flow_set":
+            self._run_flow_once(set_mode=True)
+            input("\n  [Enter to continue] ")
+        elif action == "flow_clear":
+            self._run_flow_once(set_mode=False)
+            input("\n  [Enter to continue] ")
+
+    def _submenu_ip(self):
+        options = [
+            ("IP limit settings", "ip_config"),
+            ("Manage per-user IP limits", "ip_manage"),
+            ("Run IP limiter now", "ip_once"),
+            ("Back", "back"),
+        ]
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "ip_config":
+            self._configure_ip_limit()
+            input("\n  [Enter to continue] ")
+        elif action == "ip_manage":
+            self._manage_ip_limits()
+            input("\n  [Enter to continue] ")
+        elif action == "ip_once":
+            self._run_ip_limiter_once()
+            input("\n  [Enter to continue] ")
+
+    def _submenu_counter(self):
+        options = [
+            ("View counter report", "counter_view"),
+            ("Reset counter", "counter_reset"),
+            ("Back", "back"),
+        ]
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "counter_view":
+            self._view_counter()
+            input("\n  [Enter to continue] ")
+        elif action == "counter_reset":
+            self._reset_counter()
+            input("\n  [Enter to continue] ")
+
+    def _submenu_bw(self):
+        options = [
+            ("View bandwidth report", "vcounter_view"),
+            ("Back", "back"),
+        ]
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "vcounter_view":
+            self._view_vcounter()
+            input("\n  [Enter to continue] ")
+
+    def _submenu_traffic(self):
+        options = [
+            ("Traffic limit settings", "vl_config"),
+            ("Manage exempt users", "vl_exempt_list"),
+            ("Back", "back"),
+        ]
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "vl_config":
+            self._configure_volume_limit()
+            input("\n  [Enter to continue] ")
+        elif action == "vl_exempt_list":
+            self._manage_exempt_list()
+            input("\n  [Enter to continue] ")
+
+    def _submenu_services(self):
+        pid = daemon_pid()
+        if pid:
+            options = [
+                ("Stop daemon", "daemon_stop"),
+                ("View daemon logs", "daemon_logs"),
+            ]
+        else:
+            options = [
+                ("Start daemon", "daemon_start"),
+            ]
+        options.append(("Back", "back"))
+
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "daemon_start":
+            self._start_daemon()
+            input("\n  [Enter to continue] ")
+        elif action == "daemon_stop":
+            self._stop_daemon()
+            input("\n  [Enter to continue] ")
+        elif action == "daemon_logs":
+            view_logs()
+            input("\n  [Enter to continue] ")
+
+    def _submenu_settings(self):
+        options = [
+            ("View settings", "settings"),
+            ("Telegram setup", "telegram"),
+            ("Test Telegram connection", "test_telegram"),
+            ("Master / Node configuration", "master_node"),
+        ]
+        if self.config.get_master_enabled():
+            options.append(("View multi-server dashboard", "dashboard"))
+        options.append(("Back", "back"))
+
+        choice = self._menu(options)
+        if choice == 0:
+            return
+        action = options[choice - 1][1]
+        if action == "settings":
+            self._view_settings()
+            input("\n  [Enter to continue] ")
+        elif action == "telegram":
+            self._setup_telegram()
+            input("\n  [Enter to continue] ")
+        elif action == "test_telegram":
+            self._test_telegram()
+            input("\n  [Enter to continue] ")
+        elif action == "master_node":
+            self._setup_master_node()
+            input("\n  [Enter to continue] ")
+        elif action == "dashboard":
+            self._view_dashboard()
+            input("\n  [Enter to continue] ")
