@@ -141,6 +141,16 @@ body{
 .nav-links li:hover{background:var(--hover);color:var(--text);}
 .nav-links li.active{background:var(--primary-dim);color:var(--primary);font-weight:600;}
 
+.nav-group-label{
+  font-size:10px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  color:var(--text2);
+  padding:16px 12px 4px;
+  opacity:.6;
+}
+
 .nav-icon{
   width:20px;
   text-align:center;

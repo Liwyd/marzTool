@@ -16,17 +16,24 @@
       <span class="logo-text">MarzTool</span>
     </div>
     <ul class="nav-links">
-      <li class="active" data-page="dashboard"><span class="nav-icon">&#9632;</span> Dashboard</li>
-      <li data-page="counter"><span class="nav-icon">#</span> Counter</li>
-      <li data-page="vcounter"><span class="nav-icon">V</span> VCounter</li>
-      <li data-page="iplimit"><span class="nav-icon">IP</span> IP Limit</li>
-      <li data-page="flow"><span class="nav-icon">F</span> Flow</li>
-      <li data-page="volume"><span class="nav-icon">GB</span> Volume Limit</li>
-      <li data-page="users"><span class="nav-icon">U</span> Users</li>
-      <li data-page="subadmin"><span class="nav-icon">SA</span> Sub-Admins</li>
-      <li data-page="telegram"><span class="nav-icon">TG</span> Telegram</li>
-      <li data-page="settings"><span class="nav-icon">*</span> Settings</li>
-      <li data-page="daemon"><span class="nav-icon">D</span> Daemon</li>
+      <li class="active" data-page="dashboard"><span class="nav-icon">&#9632;</span> Overview</li>
+
+      <li class="nav-group-label">Management</li>
+      <li data-page="counter"><span class="nav-icon">#</span> User Counter</li>
+      <li data-page="bandwidth"><span class="nav-icon">BW</span> Bandwidth Tracker</li>
+      <li data-page="iplimit"><span class="nav-icon">IP</span> IP Limiter</li>
+      <li data-page="flow"><span class="nav-icon">F</span> VLESS Flow</li>
+      <li data-page="traffic"><span class="nav-icon">GB</span> Traffic Limiter</li>
+
+      <li class="nav-group-label">Access</li>
+      <li data-page="users"><span class="nav-icon">U</span> Panel Users</li>
+      <li data-page="subadmin"><span class="nav-icon">SA</span> Admin Permissions</li>
+
+      <li class="nav-group-label">System</li>
+      <li data-page="settlement"><span class="nav-icon">$</span> Settlements</li>
+      <li data-page="telegram"><span class="nav-icon">TG</span> Notifications</li>
+      <li data-page="settings"><span class="nav-icon">*</span> Configuration</li>
+      <li data-page="services"><span class="nav-icon">S</span> Services</li>
     </ul>
     <div class="sidebar-footer">
       <button class="theme-toggle" id="themeToggle" title="Toggle theme">&#9681;</button>
@@ -34,20 +41,21 @@
   </nav>
 
   <main class="content">
-    <!-- DASHBOARD -->
+    <!-- OVERVIEW -->
     <section class="page active" id="page-dashboard">
-      <h1>Dashboard</h1>
+      <h1>Overview</h1>
       <div class="cards" id="summaryCards"></div>
       <div class="card mt-16">
-        <h2>Per Admin</h2>
-        <div class="table-wrap"><table id="adminTable"><thead><tr><th>Admin</th><th>Configs</th><th>Counter</th><th>Volume (GB)</th></tr></thead><tbody></tbody></table></div>
+        <h2>Per Admin Summary</h2>
+        <div class="table-wrap"><table id="adminTable"><thead><tr><th>Admin</th><th>Configs</th><th>Count</th><th>Bandwidth (GB)</th></tr></thead><tbody></tbody></table></div>
         <div id="adminPager"></div>
       </div>
     </section>
 
-    <!-- COUNTER -->
+    <!-- USER COUNTER -->
     <section class="page" id="page-counter">
-      <h1>Counter</h1>
+      <h1>User Counter</h1>
+      <p class="mb-12">Count how many configs each admin has created. Based on 500MB traffic threshold.</p>
       <div class="cards" id="counterCards"></div>
       <div class="card mt-16">
         <div class="card-header">
@@ -67,16 +75,17 @@
       </div>
     </section>
 
-    <!-- VCOUNTER -->
-    <section class="page" id="page-vcounter">
-      <h1>VCounter</h1>
+    <!-- BANDWIDTH TRACKER -->
+    <section class="page" id="page-bandwidth">
+      <h1>Bandwidth Tracker</h1>
+      <p class="mb-12">Track total assigned bandwidth (data_limit) per admin across all their configs.</p>
       <div class="cards" id="vcounterCards"></div>
       <div class="card mt-16">
         <div class="card-header">
-          <h2>Admin Volumes</h2>
+          <h2>Admin Bandwidth</h2>
           <button class="btn btn-sm" onclick="loadVCounter()">Refresh</button>
         </div>
-        <div class="table-wrap"><table id="vcounterTable"><thead><tr><th>Admin</th><th>Volume (GB)</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="vcounterTable"><thead><tr><th>Admin</th><th>Total (GB)</th><th>Action</th></tr></thead><tbody></tbody></table></div>
         <div id="vcounterPager"></div>
       </div>
       <div class="card mt-16">
@@ -86,12 +95,13 @@
       </div>
     </section>
 
-    <!-- IP LIMIT -->
+    <!-- IP LIMITER -->
     <section class="page" id="page-iplimit">
-      <h1>IP Limit</h1>
+      <h1>IP Limiter</h1>
+      <p class="mb-12">Limit simultaneous connections per user. Auto-bans excess IPs via iptables.</p>
       <div class="card">
         <div class="card-header">
-          <h2>IP Limits per User</h2>
+          <h2>Per-User Limits</h2>
           <button class="btn btn-sm" onclick="loadIpLimits()">Refresh</button>
         </div>
         <div class="form-row">
@@ -105,12 +115,12 @@
       </div>
     </section>
 
-    <!-- FLOW -->
+    <!-- VLESS FLOW -->
     <section class="page" id="page-flow">
       <h1>VLESS Flow</h1>
+      <p class="mb-12">Set or clear <code>xtls-rprx-vision</code> flow on all VLESS users.</p>
       <div class="card">
-        <p>Set or clear <code>xtls-rprx-vision</code> flow on all VLESS users.</p>
-        <div class="btn-group mt-16">
+        <div class="btn-group">
           <button class="btn btn-primary" onclick="flowSet()">Set Flow (xtls-rprx-vision)</button>
           <button class="btn btn-danger" onclick="flowClear()">Clear Flow</button>
         </div>
@@ -118,9 +128,10 @@
       </div>
     </section>
 
-    <!-- VOLUME LIMIT -->
-    <section class="page" id="page-volume">
-      <h1>Volume Limit</h1>
+    <!-- TRAFFIC LIMITER -->
+    <section class="page" id="page-traffic">
+      <h1>Traffic Limiter</h1>
+      <p class="mb-12">Auto-disable users who exceed a traffic limit. Exempt users are skipped.</p>
       <div class="card">
         <h2>Configuration</h2>
         <div class="form-row">
@@ -144,18 +155,19 @@
         <div id="exemptPager"></div>
       </div>
       <div class="card mt-16">
-        <h2>Disabled Users (Recent)</h2>
+        <h2>Recently Disabled</h2>
         <div class="table-wrap"><table id="volNotifTable"><thead><tr><th>Username</th><th>Admin</th><th>Used (GB)</th><th>Date</th></tr></thead><tbody></tbody></table></div>
         <div id="volNotifPager"></div>
       </div>
     </section>
 
-    <!-- USERS -->
+    <!-- PANEL USERS -->
     <section class="page" id="page-users">
-      <h1>Users</h1>
+      <h1>Panel Users</h1>
+      <p class="mb-12">All users from the Marzban panel.</p>
       <div class="card">
         <div class="card-header">
-          <h2>All Panel Users</h2>
+          <h2>User List</h2>
           <button class="btn btn-sm" onclick="loadUsers()">Refresh</button>
         </div>
         <div class="table-wrap"><table id="usersTable"><thead><tr><th>Username</th><th>Status</th><th>Admin</th><th>Data Limit</th><th>Used</th><th>Created</th></tr></thead><tbody></tbody></table></div>
@@ -163,11 +175,12 @@
       </div>
     </section>
 
-    <!-- SUB-ADMINS -->
+    <!-- ADMIN PERMISSIONS -->
     <section class="page" id="page-subadmin">
-      <h1>Sub-Admins</h1>
+      <h1>Admin Permissions</h1>
+      <p class="mb-12">Grant Telegram users limited access to view specific admins' data.</p>
       <div class="card">
-        <h2>Counter Sub-Admins</h2>
+        <h2>User Counter Access</h2>
         <div class="form-row">
           <input type="number" id="saTgId" placeholder="Telegram ID" class="input">
           <input type="text" id="saAdmins" placeholder="Allowed admins (comma separated)" class="input">
@@ -177,7 +190,7 @@
         <div class="table-wrap mt-16"><table id="saCounterTable"><thead><tr><th>Telegram ID</th><th>Allowed Admins</th></tr></thead><tbody></tbody></table></div>
       </div>
       <div class="card mt-16">
-        <h2>VCounter Sub-Admins</h2>
+        <h2>Bandwidth Tracker Access</h2>
         <div class="form-row">
           <input type="number" id="vcSaTgId" placeholder="Telegram ID" class="input">
           <input type="text" id="vcSaAdmins" placeholder="Allowed admins (comma separated)" class="input">
@@ -188,20 +201,51 @@
       </div>
     </section>
 
-    <!-- TELEGRAM -->
+    <!-- SETTLEMENTS -->
+    <section class="page" id="page-settlement">
+      <h1>Settlements</h1>
+      <p class="mb-12">Reset your personal view of counters without affecting the grand total.</p>
+      <div class="card">
+        <h2>User Counter</h2>
+        <div class="form-row">
+          <input type="text" id="settleCounterAdmin" placeholder="Admin username" class="input">
+          <button class="btn btn-primary" onclick="settleCounterFromPage()">Settle</button>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <h2>Bandwidth Tracker</h2>
+        <div class="form-row">
+          <input type="text" id="settleVcAdmin" placeholder="Admin username" class="input">
+          <button class="btn btn-primary" onclick="settleVCounterFromPage()">Settle</button>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <h2>Counter History</h2>
+        <div class="table-wrap"><table id="settleCounterTable"><thead><tr><th>Admin</th><th>By</th><th>Amount</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        <div id="settleCounterPager"></div>
+      </div>
+      <div class="card mt-16">
+        <h2>Bandwidth History</h2>
+        <div class="table-wrap"><table id="settleVcTable"><thead><tr><th>Admin</th><th>By</th><th>Amount (GB)</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        <div id="settleVcPager"></div>
+      </div>
+    </section>
+
+    <!-- NOTIFICATIONS -->
     <section class="page" id="page-telegram">
-      <h1>Telegram Bot</h1>
+      <h1>Notifications</h1>
+      <p class="mb-12">Telegram bot for alerts, inline menus, and admin interaction.</p>
       <div class="card">
         <h2>Test Connection</h2>
-        <p>Test API connectivity, bot token, admin chat, and send a test message.</p>
+        <p>Send a test message to verify bot token and admin chat.</p>
         <button class="btn btn-primary mt-16" onclick="testTelegram()">Send Test</button>
         <div id="tgResult" class="mt-16"></div>
       </div>
     </section>
 
-    <!-- SETTINGS -->
+    <!-- CONFIGURATION -->
     <section class="page" id="page-settings">
-      <h1>Settings</h1>
+      <h1>Configuration</h1>
       <div class="card">
         <h2>Panel Connection</h2>
         <div class="form-grid">
@@ -215,7 +259,7 @@
         <div class="feature-list">
           <div class="feature-row">
             <div class="feature-info">
-              <span class="feature-name">Flow Updater</span>
+              <span class="feature-name">VLESS Flow</span>
               <span class="feature-desc">Set xtls-rprx-vision on all VLESS users</span>
             </div>
             <button class="toggle-btn" id="setFlow" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
@@ -227,7 +271,7 @@
           <div class="feature-row">
             <div class="feature-info">
               <span class="feature-name">IP Limiter</span>
-              <span class="feature-desc">Limit IPs per user with iptables</span>
+              <span class="feature-desc">Limit simultaneous connections per user</span>
             </div>
             <button class="toggle-btn" id="setIp" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
           </div>
@@ -237,33 +281,33 @@
           </div>
           <div class="feature-row">
             <div class="feature-info">
-              <span class="feature-name">Counter</span>
-              <span class="feature-desc">Count users per admin (500MB threshold)</span>
+              <span class="feature-name">User Counter</span>
+              <span class="feature-desc">Count configs created by each admin</span>
             </div>
             <button class="toggle-btn" id="setCounter" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
           </div>
           <div class="feature-row">
             <div class="feature-info">
-              <span class="feature-name">VCounter</span>
-              <span class="feature-desc">Track volume per admin (data_limit sum)</span>
+              <span class="feature-name">Bandwidth Tracker</span>
+              <span class="feature-desc">Track total data_limit per admin</span>
             </div>
             <button class="toggle-btn" id="setVcounter" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
           </div>
           <div class="feature-row">
             <div class="feature-info">
-              <span class="feature-name">Volume Limit</span>
-              <span class="feature-desc">Disable users exceeding GB limit</span>
+              <span class="feature-name">Traffic Limiter</span>
+              <span class="feature-desc">Auto-disable users exceeding GB limit</span>
             </div>
             <button class="toggle-btn" id="setVol" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
           </div>
           <div class="feature-row" id="volValueRow" style="display:none">
-            <div class="feature-info"><span class="feature-name">Volume limit (GB)</span></div>
+            <div class="feature-info"><span class="feature-name">Traffic limit (GB)</span></div>
             <input type="number" id="setVolGb" class="input input-sm" value="250">
           </div>
           <div class="feature-row">
             <div class="feature-info">
-              <span class="feature-name">Telegram Bot</span>
-              <span class="feature-desc">Notifications and inline keyboard menus</span>
+              <span class="feature-name">Telegram Notifications</span>
+              <span class="feature-desc">Alerts and inline keyboard menus</span>
             </div>
             <button class="toggle-btn" id="setTg" onclick="toggleFeature(this)"><span class="toggle-knob"></span></button>
           </div>
@@ -279,7 +323,7 @@
       </div>
       <div class="card mt-16">
         <h2>SSL (Auto-provision)</h2>
-        <p class="mb-12">Enter your domain and email to get a free SSL certificate automatically via acme.sh / Let's Encrypt.</p>
+        <p class="mb-12">Enter your domain and email to get a free SSL certificate automatically.</p>
         <div class="form-row">
           <input type="text" id="sslDomain" class="input" placeholder="yourdomain.com">
           <input type="email" id="sslEmail" class="input" placeholder="you@email.com">
@@ -289,22 +333,23 @@
         <div class="ssl-status mt-12" id="sslStatus"></div>
       </div>
       <div class="card mt-16">
-        <h2>Daemon</h2>
+        <h2>Daemon Settings</h2>
         <div class="form-grid">
-          <div class="form-group"><label>Interval (seconds)</label><input type="number" id="setInterval" class="input" value="20"></div>
-          <div class="form-group"><label>Ban time (minutes)</label><input type="number" id="setBanTime" class="input" value="4"></div>
+          <div class="form-group"><label>Check interval (seconds)</label><input type="number" id="setInterval" class="input" value="20"></div>
+          <div class="form-group"><label>Ban duration (minutes)</label><input type="number" id="setBanTime" class="input" value="4"></div>
           <div class="form-group"><label>SSH port</label><input type="number" id="setSshPort" class="input" value="22"></div>
         </div>
       </div>
       <button class="btn btn-primary mt-16" onclick="saveSettings()">Save All Settings</button>
     </section>
 
-    <!-- DAEMON -->
-    <section class="page" id="page-daemon">
-      <h1>Daemon</h1>
+    <!-- SERVICES -->
+    <section class="page" id="page-services">
+      <h1>Services</h1>
+      <p class="mb-12">Manage background processes.</p>
       <div class="card">
         <div class="card-header">
-          <h2>MarzTool Daemon</h2>
+          <h2>Daemon (Background Worker)</h2>
           <div class="btn-group">
             <button class="btn btn-success" onclick="daemonStart()">Start</button>
             <button class="btn btn-danger" onclick="daemonStop()">Stop</button>
@@ -323,7 +368,7 @@
         <div id="webDaemonStatus" class="mt-16"></div>
       </div>
       <div class="card mt-16">
-        <h2>Logs</h2>
+        <h2>Daemon Logs</h2>
         <div class="log-box" id="daemonLogs"></div>
         <button class="btn btn-sm mt-8" onclick="loadDaemonLogs()">Refresh</button>
       </div>

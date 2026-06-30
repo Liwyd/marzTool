@@ -38,14 +38,15 @@ function loadPage(page){
   const loaders={
     dashboard:loadDashboard,
     counter:loadCounter,
-    vcounter:loadVCounter,
+    bandwidth:loadVCounter,
     iplimit:loadIpLimits,
-    volume:()=>{loadExempt();loadVolumeNotifs();loadVolumeConfig();},
+    traffic:()=>{loadExempt();loadVolumeNotifs();loadVolumeConfig();},
     users:loadUsers,
     subadmin:()=>{loadCounterSubAdmins();loadVCounterSubAdmins();},
+    settlement:loadSettlement,
     telegram:()=>{},
     settings:loadSettings,
-    daemon:()=>{loadDaemonStatus();loadDaemonLogs();loadWebDaemonStatus();},
+    services:()=>{loadDaemonStatus();loadDaemonLogs();loadWebDaemonStatus();},
   };
   if(loaders[page])loaders[page]();
 }
@@ -423,7 +424,39 @@ async function getSslCert(){
   }
 }
 
-// DAEMON
+// SETTLEMENTS
+async function loadSettlement(page){
+  const s=await api('/api/counter/settlements');
+  const sp=paginate(s.settlements||(),'sc',page);
+  document.querySelector('#settleCounterTable tbody').innerHTML=sp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${x.amount_count}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
+  document.getElementById('settleCounterPager').innerHTML=pagerHtml('sc',sp.total,sp.totalPages,'loadSettlement');
+  const v=await api('/api/vcounter/settlements');
+  const vp=paginate(v.settlements||(),'sv',page);
+  document.querySelector('#settleVcTable tbody').innerHTML=vp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${fmt(x.amount_bytes)}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
+  document.getElementById('settleVcPager').innerHTML=pagerHtml('sv',vp.total,vp.totalPages,'loadSettlement');
+}
+
+async function settleCounterFromPage(){
+  const admin=document.getElementById('settleCounterAdmin').value.trim();
+  if(!admin)return toast('Enter admin username','error');
+  if(!confirm('Settle '+admin+'?'))return;
+  const d=await api('/api/counter/settle',{method:'POST',body:JSON.stringify({admin_username:admin,settled_by:'web'})});
+  if(d.error){toast(d.error,'error');return;}
+  toast('Settled '+d.settled+' configs','success');
+  loadSettlement();
+}
+
+async function settleVCounterFromPage(){
+  const admin=document.getElementById('settleVcAdmin').value.trim();
+  if(!admin)return toast('Enter admin username','error');
+  if(!confirm('Settle '+admin+'?'))return;
+  const d=await api('/api/vcounter/settle',{method:'POST',body:JSON.stringify({admin_username:admin,settled_by:'web'})});
+  if(d.error){toast(d.error,'error');return;}
+  toast('Settled '+fmt(d.settled)+' GB','success');
+  loadSettlement();
+}
+
+// SERVICES
 async function loadDaemonStatus(){
   const d=await api('/api/daemon/status');
   document.getElementById('daemonStatus').innerHTML=d.running?`<span class="badge badge-success">RUNNING</span> PID: ${d.pid}`:`<span class="badge badge-danger">STOPPED</span>`;

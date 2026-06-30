@@ -74,15 +74,15 @@ class TUI:
         print(f"  Daemon  : {status}")
         print(f"  Flow    : {flow_display}")
         print(f"  IP Limit: {ip_status}    Telegram: {tg_status}")
-        print(f"  Vol Limit: {vl_status}")
+        print(f"  Traffic : {vl_status}")
         ct_on = self.config.get_counter_enabled()
         vc_on = self.config.get_vcounter_enabled()
         if ct_on:
-            print(f"  Mode: {c('green', 'Counter (user count)')}")
+            print(f"  Mode: {c('green', 'User Counter')}")
         elif vc_on:
-            print(f"  Mode: {c('green', 'VCounter (volume)')}")
+            print(f"  Mode: {c('green', 'Bandwidth Tracker')}")
         else:
-            print(f"  Counter: {ct_status}    VCounter: {vc_status}")
+            print(f"  Counter: {ct_status}    Bandwidth: {vc_status}")
         print(c("dim", f"  Server  : {self.config.get_server_url() or 'not set'}"))
         print(c("bold", c("cyan", "-" * 65)))
 
@@ -95,15 +95,24 @@ class TUI:
             print()
             return default
 
-    def _menu(self, options: list[tuple[str, str]]) -> int:
-        for i, (label, _) in enumerate(options, 1):
-            print(f"  {c('cyan', str(i))}.  {label}")
+    def _menu(self, options: list) -> int:
+        real_idx = 0
+        for item in options:
+            if isinstance(item, tuple) and item[0] and item[1]:
+                real_idx += 1
+                print(f"  {c('cyan', str(real_idx))}.  {item[0]}")
+            elif isinstance(item, str) and item.startswith("---"):
+                print(f"\n  {c('dim', item)}")
         print()
         try:
             raw = input("  Choose: ").strip()
             n = int(raw)
-            if 1 <= n <= len(options):
-                return n
+            real_idx = 0
+            for item in options:
+                if isinstance(item, tuple) and item[0] and item[1]:
+                    real_idx += 1
+                    if real_idx == n:
+                        return options.index(item) + 1
         except (ValueError, EOFError, KeyboardInterrupt):
             pass
         return 0
@@ -210,7 +219,7 @@ class TUI:
     def _setup_master(self):
         print(c("bold", c("cyan", "\n  === Setup Master Mode ===")))
         print("  Master runs an HTTP API server that nodes connect to.")
-        print("  Master aggregates counter/vcounter/volume data from all nodes.")
+        print("  Master aggregates counter/bandwidth/traffic data from all nodes.")
         print()
 
         enabled = self.config.get_master_enabled()
@@ -302,7 +311,7 @@ class TUI:
             print("  No nodes registered yet.")
             return
 
-        print(f"\n  {'Node':<25} {'Status':<10} {'Counter':<10} {'Volume (GB)':<15}")
+        print(f"\n  {'Node':<25} {'Status':<10} {'Counter':<10} {'Bandwidth (GB)':<15}")
         print(f"  {'-'*25} {'-'*10} {'-'*10} {'-'*15}")
 
         total_counter = 0
@@ -522,9 +531,9 @@ class TUI:
             (f"Flow updater:  {c('green' if flow else 'dim', 'ON' if flow else 'OFF')}", "flow"),
             (f"IP limiter:    {c('green' if ip else 'dim', 'ON' if ip else 'OFF')}", "ip"),
             (f"Telegram:      {c('green' if tg else 'dim', 'ON' if tg else 'OFF')}", "tg"),
-            (f"Counter:       {c('green' if ct else 'dim', 'ON' if ct else 'OFF')}", "ct"),
-            (f"Volume limit:  {c('green' if vl else 'dim', 'ON' if vl else 'OFF')}", "vl"),
-            (f"VCounter:      {c('green' if vc else 'dim', 'ON' if vc else 'OFF')}", "vc"),
+            (f"User Counter:  {c('green' if ct else 'dim', 'ON' if ct else 'OFF')}", "ct"),
+            (f"Traffic Limit: {c('green' if vl else 'dim', 'ON' if vl else 'OFF')}", "vl"),
+            (f"Bandwidth:     {c('green' if vc else 'dim', 'ON' if vc else 'OFF')}", "vc"),
             ("Back", "back"),
         ]
 
@@ -552,21 +561,21 @@ class TUI:
             print(c("green", f"\n  Telegram {'enabled' if not tg else 'disabled'}."))
         elif choice == 4:
             if not ct and vc:
-                print(c("yellow", "\n  Cannot enable Counter while VCounter is ON. VCounter disabled first."))
+                print(c("yellow", "\n  Cannot enable User Counter while Bandwidth Tracker is ON. Bandwidth Tracker disabled first."))
             self.config.set_counter_enabled(not ct)
-            print(c("green", f"\n  Counter {'enabled' if not ct else 'disabled'}."))
+            print(c("green", f"\n  User Counter {'enabled' if not ct else 'disabled'}."))
         elif choice == 5:
             self.config.set_volume_limit_enabled(not vl)
             if not vl:
                 gb = self.config.get_volume_limit_gb()
-                print(c("green", f"\n  Volume limit enabled ({gb} GB)."))
+                print(c("green", f"\n  Traffic Limit enabled ({gb} GB)."))
             else:
-                print(c("green", "\n  Volume limit disabled."))
+                print(c("green", "\n  Traffic Limit disabled."))
         elif choice == 6:
             if not vc and ct:
-                print(c("yellow", "\n  Cannot enable VCounter while Counter is ON. Counter disabled first."))
+                print(c("yellow", "\n  Cannot enable Bandwidth Tracker while User Counter is ON. User Counter disabled first."))
             self.config.set_vcounter_enabled(not vc)
-            print(c("green", f"\n  VCounter {'enabled' if not vc else 'disabled'}."))
+            print(c("green", f"\n  Bandwidth Tracker {'enabled' if not vc else 'disabled'}."))
 
     def _setup_volume_limit(self):
         print(c("bold", c("cyan", "\n  === Volume Limit Configuration ===")))
@@ -643,8 +652,33 @@ class TUI:
         else:
             print(c("red", "\n  Failed to start web dashboard."))
 
+    def _update_tool(self):
+        import subprocess
+        print(c("bold", c("cyan", "\n  === Update marzTool ===")))
+        install_dir = "/opt/marztool"
+        import os
+        if not os.path.isdir(install_dir):
+            print(c("yellow", f"  Install directory not found: {install_dir}"))
+            return
+        print(c("dim", f"  Running git pull in {install_dir}..."))
+        result = subprocess.run(
+            ["git", "pull"],
+            cwd=install_dir,
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            if "Already up to date" in output or "Already up-to-date" in output:
+                print(c("green", "  Already up to date."))
+            else:
+                print(c("green", "  Updated successfully:"))
+                for line in output.split("\n")[:10]:
+                    print(c("dim", f"    {line}"))
+        else:
+            print(c("red", f"  Update failed:\n{result.stderr.strip()}"))
+
     def _view_vcounter(self):
-        print(c("bold", c("cyan", "\n  === VCounter Report ===")))
+        print(c("bold", c("cyan", "\n  === Bandwidth Tracker Report ===")))
         from modules.vcounter import VCounter
         vc = VCounter(None, self.db)
         try:
@@ -665,13 +699,13 @@ class TUI:
             print(c("red", f"  Error: {e}"))
 
     def _settle(self):
-        print(c("bold", c("cyan", "\n  === Settle Counter / VCounter ===")))
-        print("  This resets your personal total without affecting the grand total.")
+        print(c("bold", c("cyan", "\n  === Settlements ===")))
+        print("  Reset your personal view without affecting the grand total.")
         print()
-        print(f"  {c('cyan', '1')}.  Settle Counter (reset your config count)")
-        print(f"  {c('cyan', '2')}.  Settle VCounter (reset your volume total)")
+        print(f"  {c('cyan', '1')}.  Settle User Counter (reset your config count)")
+        print(f"  {c('cyan', '2')}.  Settle Bandwidth Tracker (reset your bandwidth total)")
         print(f"  {c('cyan', '3')}.  View Counter Settlements")
-        print(f"  {c('cyan', '4')}.  View VCounter Settlements")
+        print(f"  {c('cyan', '4')}.  View Bandwidth Settlements")
         print(f"  {c('cyan', '5')}.  Back")
         print()
 
@@ -704,7 +738,7 @@ class TUI:
             if settled <= 0:
                 print(c("yellow", "\n  Nothing to settle."))
             else:
-                print(c("green", f"\n  VCounter settled. Reset {settled / GB:.2f} GB from your view."))
+                print(c("green", f"\n  Bandwidth settled. Reset {settled / GB:.2f} GB from your view."))
         elif choice == 3:
             settlements = self.db.get_counter_settlements()
             if not settlements:
@@ -782,7 +816,7 @@ class TUI:
 
         flow_val = self.config.get_flow_value()
         flow_label = f"ON ({flow_val})" if flow else "OFF"
-        print(f"  Features: Flow={flow_label}  IP Limit={'ON' if ip else 'OFF'}  Counter={'ON' if ct else 'OFF'}  Vol Limit={'ON' if vl else 'OFF'}  VCounter={'ON' if vc else 'OFF'}")
+        print(f"  Features: Flow={flow_label}  IP Limit={'ON' if ip else 'OFF'}  Counter={'ON' if ct else 'OFF'}  Traffic={'ON' if vl else 'OFF'}  Bandwidth={'ON' if vc else 'OFF'}")
         print(f"  Interval: {interval}s")
 
         try:
@@ -809,9 +843,9 @@ class TUI:
             "Telegram enabled": str(self.config.get_telegram_enabled()),
             "Telegram token": "*" * 8 if self.config.get_telegram_token() else "not set",
             "Telegram admin": self.config.get_telegram_admin_id() or "not set",
-            "Volume limit enabled": str(self.config.get_volume_limit_enabled()),
-            "Volume limit (GB)": str(self.config.get_volume_limit_gb()),
-            "VCounter enabled": str(self.config.get_vcounter_enabled()),
+            "Traffic limit enabled": str(self.config.get_volume_limit_enabled()),
+            "Traffic limit (GB)": str(self.config.get_volume_limit_gb()),
+            "Bandwidth tracker enabled": str(self.config.get_vcounter_enabled()),
         }
         for key, val in settings.items():
             print(f"  {c('dim', key + ':'):<35} {val}")
@@ -823,35 +857,57 @@ class TUI:
             pid = daemon_pid()
 
             options = [
-                ("Setup wizard (server / credentials)", "setup"),
+                ("Panel connection (setup wizard)", "setup"),
+                ("Toggle features on/off", "toggle"),
+                "",
+                "--- VLESS Flow ---",
                 ("Configure flow mode (set / clear)", "flow_config"),
-                ("Run flow setter (set xtls-rprx-vision)", "flow_set"),
-                ("Run flow setter (clear / unset)", "flow_clear"),
-                ("IP limit configuration", "ip_config"),
-                ("Manage IP limits per user", "ip_manage"),
-                ("Run IP limiter (one-shot)", "ip_once"),
-                ("Volume limit configuration", "vl_config"),
-                ("Manage exempt users list", "vl_exempt_list"),
-                ("View vcounter report", "vcounter_view"),
-                ("Settle counter / vcounter", "settle"),
+                ("Apply flow now (set xtls-rprx-vision)", "flow_set"),
+                ("Apply flow now (clear / unset)", "flow_clear"),
+                "",
+                "--- IP Limiter ---",
+                ("IP limit settings", "ip_config"),
+                ("Manage per-user IP limits", "ip_manage"),
+                ("Run IP limiter now", "ip_once"),
+                "",
+                "--- User Counter ---",
                 ("View counter report", "counter_view"),
                 ("Reset counter", "counter_reset"),
-                ("Toggle features (flow / IP limit / telegram / counter / volume)", "toggle"),
-                ("Start daemon", "daemon_start"),
+                "",
+                "--- Bandwidth Tracker ---",
+                ("View bandwidth report", "vcounter_view"),
+                "",
+                "--- Traffic Limiter ---",
+                ("Traffic limit settings", "vl_config"),
+                ("Manage exempt users", "vl_exempt_list"),
+                "",
+                "--- Settlements ---",
+                ("Settle counter / bandwidth", "settle"),
             ]
 
             if pid:
+                options.append("")
+                options.append("--- Services ---")
                 options.append(("Stop daemon", "daemon_stop"))
                 options.append(("View daemon logs", "daemon_logs"))
+            else:
+                options.append("")
+                options.append("--- Services ---")
+                options.append(("Start daemon", "daemon_start"))
 
-            options.append(("View settings", "settings"))
-            options.append(("Telegram setup", "telegram"))
-            options.append(("Test Telegram connection", "test_telegram"))
-            options.append(("Master / Node configuration", "master_node"))
+            options.extend([
+                "",
+                "--- System ---",
+                ("View settings", "settings"),
+                ("Telegram setup", "telegram"),
+                ("Test Telegram connection", "test_telegram"),
+                ("Master / Node configuration", "master_node"),
+            ])
             if self.config.get_master_enabled():
                 options.append(("View multi-server dashboard", "dashboard"))
             options.append(("Web dashboard", "web_dashboard"))
-            options.append(("Exit", "exit"))
+            options.append(("Update (git pull)", "update"))
+            options.append(("", "exit"))
 
             choice = self._menu(options)
             if choice == 0:
@@ -954,4 +1010,8 @@ class TUI:
 
             elif action == "web_dashboard":
                 self._start_web_dashboard()
+                input("\n  [Enter to continue] ")
+
+            elif action == "update":
+                self._update_tool()
                 input("\n  [Enter to continue] ")
