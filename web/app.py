@@ -338,6 +338,10 @@ class WebDashboard:
                 "node_enabled": config.get_node_enabled(),
                 "node_name": config.get_node_name() or "",
                 "master_url": config.get_master_url() or "",
+                "ssl_cert": config.get_ssl_cert() or "",
+                "ssl_key": config.get_ssl_key() or "",
+                "ssl_domain": config.get_ssl_domain() or "",
+                "web_port": config.get_web_port(),
             })
 
         @app.route("/api/settings", methods=["POST"])

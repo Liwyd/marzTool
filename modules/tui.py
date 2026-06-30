@@ -49,6 +49,7 @@ class TUI:
     def _banner(self):
         clear_screen()
         from modules.web_daemon import web_daemon_pid, web_daemon_port
+        import socket
         pid = daemon_pid()
         web_pid = web_daemon_pid()
         status = (
@@ -57,11 +58,19 @@ class TUI:
             c("dim", "stopped")
         )
         web_port = web_daemon_port()
-        web_status = (
-            c("green", f"ON  http://0.0.0.0:{web_port}")
-            if web_pid else
-            c("dim", "OFF")
-        )
+        if web_pid and web_port:
+            ssl_domain = self.config.get_ssl_domain()
+            if ssl_domain:
+                web_url = f"https://{ssl_domain}:{web_port}"
+            else:
+                try:
+                    ip = [i for i in socket.gethostbyname_ex(socket.gethostname())[2] if not i.startswith("127.")][0]
+                except Exception:
+                    ip = "localhost"
+                web_url = f"http://{ip}:{web_port}"
+            web_status = c("green", f"ON  {web_url}")
+        else:
+            web_status = c("dim", "OFF")
 
         flow_val = self.config.get_flow_value()
         if self.config.get_flow_enabled():
@@ -651,13 +660,20 @@ class TUI:
 
         pid = spawn_web_daemon(self.config)
         if pid:
-            hostname = socket.gethostname()
+            ssl_domain = self.config.get_ssl_domain()
+            if ssl_domain:
+                url = f"https://{ssl_domain}:{port}"
+            else:
+                try:
+                    ip = [i for i in socket.gethostbyname_ex(socket.gethostname())[2] if not i.startswith("127.")][0]
+                except Exception:
+                    ip = "localhost"
+                url = f"http://{ip}:{port}"
             print()
             print(c("green", f"  Web dashboard started (PID {pid})"))
             print()
-            print(c("bold", "  Access URLs:"))
-            print(c("dim",    f"    Local   : http://localhost:{port}"))
-            print(c("dim",    f"    Network : http://{hostname}:{port}"))
+            print(c("bold", "  Access URL:"))
+            print(c("green", f"    {url}"))
             print()
         else:
             print(c("red", "\n  Failed to start web dashboard."))
@@ -1137,6 +1153,7 @@ class TUI:
         else:
             options.append(("Start web dashboard", "web_start"))
 
+        options.append(("SSL certificate setup", "ssl"))
         options.append(("Back", "back"))
 
         choice = self._menu(options)
@@ -1168,13 +1185,15 @@ class TUI:
             print(c("bold", c("cyan", "\n  === Web Dashboard Logs ===")))
             print(c("dim", logs or "No logs yet."))
             input("\n  [Enter to continue] ")
+        elif action == "ssl":
+            self._setup_ssl()
+            input("\n  [Enter to continue] ")
 
     def _submenu_settings(self):
         options = [
             ("View settings", "settings"),
             ("Telegram setup", "telegram"),
             ("Test Telegram connection", "test_telegram"),
-            ("SSL certificate setup", "ssl"),
             ("Master / Node configuration", "master_node"),
         ]
         if self.config.get_master_enabled():

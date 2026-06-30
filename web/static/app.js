@@ -12,9 +12,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 function initNav(){
   document.querySelectorAll('.nav-links li').forEach(li=>{
     li.addEventListener('click',()=>{
+      const page=li.dataset.page;
+      if(!page)return;
       document.querySelectorAll('.nav-links li').forEach(l=>l.classList.remove('active'));
       li.classList.add('active');
-      const page=li.dataset.page;
       document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
       document.getElementById('page-'+page).classList.add('active');
       currentPage=page;
@@ -134,7 +135,7 @@ async function loadCounter(page){
   document.querySelector('#counterTable tbody').innerHTML=p.items.map(a=>`<tr><td>${escHtml(a.admin_username)}</td><td><strong>${a.total_count}</strong></td><td><button class="btn btn-sm btn-primary" onclick="settleCounter('${escHtml(a.admin_username)}')">Settle</button></td></tr>`).join('')||'<tr><td colspan="3" class="empty">No data</td></tr>';
   document.getElementById('counterPager').innerHTML=pagerHtml('ct',p.total,p.totalPages,'loadCounter');
   const s=await api('/api/counter/settlements');
-  const sp=paginate(s.settlements||(),'ct_s',page);
+  const sp=paginate(s.settlements||[],'ct_s',page);
   document.querySelector('#counterSettlements tbody').innerHTML=sp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${x.amount_count}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
   document.getElementById('counterSettlementsPager').innerHTML=pagerHtml('ct_s',sp.total,sp.totalPages,'loadCounter');
 }
@@ -166,7 +167,7 @@ async function loadVCounter(page){
   document.querySelector('#vcounterTable tbody').innerHTML=p.items.map(a=>`<tr><td>${escHtml(a.admin_username)}</td><td><strong>${fmt(a.total_volume_bytes)} GB</strong></td><td><button class="btn btn-sm btn-primary" onclick="settleVCounter('${escHtml(a.admin_username)}')">Settle</button></td></tr>`).join('')||'<tr><td colspan="3" class="empty">No data</td></tr>';
   document.getElementById('vcounterPager').innerHTML=pagerHtml('vc',p.total,p.totalPages,'loadVCounter');
   const s=await api('/api/vcounter/settlements');
-  const sp=paginate(s.settlements||(),'vc_s',page);
+  const sp=paginate(s.settlements||[],'vc_s',page);
   document.querySelector('#vcounterSettlements tbody').innerHTML=sp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${fmt(x.amount_bytes)}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
   document.getElementById('vcounterSettlementsPager').innerHTML=pagerHtml('vc_s',sp.total,sp.totalPages,'loadVCounter');
 }
@@ -258,7 +259,7 @@ async function removeExempt(){
 async function loadVolumeNotifs(page){
   const d=await api('/api/volume/notifications');
   if(d.error)return;
-  const p=paginate(d.notifications||(),'vn',page);
+  const p=paginate(d.notifications||[],'vn',page);
   document.querySelector('#volNotifTable tbody').innerHTML=p.items.map(n=>`<tr><td>${escHtml(n.username)}</td><td>${escHtml(n.admin_username||'-')}</td><td>${fmt(n.used_traffic_bytes)}</td><td>${fmtDate(n.disabled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No disabled users</td></tr>';
   document.getElementById('volNotifPager').innerHTML=pagerHtml('vn',p.total,p.totalPages,'loadVolumeNotifs');
 }
@@ -415,11 +416,11 @@ async function getSslCert(){
 // SETTLEMENTS
 async function loadSettlement(page){
   const s=await api('/api/counter/settlements');
-  const sp=paginate(s.settlements||(),'sc',page);
+  const sp=paginate(s.settlements||[],'sc',page);
   document.querySelector('#settleCounterTable tbody').innerHTML=sp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${x.amount_count}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
   document.getElementById('settleCounterPager').innerHTML=pagerHtml('sc',sp.total,sp.totalPages,'loadSettlement');
   const v=await api('/api/vcounter/settlements');
-  const vp=paginate(v.settlements||(),'sv',page);
+  const vp=paginate(v.settlements||[],'sv',page);
   document.querySelector('#settleVcTable tbody').innerHTML=vp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${fmt(x.amount_bytes)}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
   document.getElementById('settleVcPager').innerHTML=pagerHtml('sv',vp.total,vp.totalPages,'loadSettlement');
 }
