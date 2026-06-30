@@ -48,11 +48,19 @@ class TUI:
 
     def _banner(self):
         clear_screen()
+        from modules.web_daemon import web_daemon_pid, web_daemon_port
         pid = daemon_pid()
+        web_pid = web_daemon_pid()
         status = (
             c("green", f"RUNNING  (PID {pid})")
             if pid else
             c("dim", "stopped")
+        )
+        web_port = web_daemon_port()
+        web_status = (
+            c("green", f"ON  http://0.0.0.0:{web_port}")
+            if web_pid else
+            c("dim", "OFF")
         )
 
         flow_val = self.config.get_flow_value()
@@ -72,6 +80,7 @@ class TUI:
         print(c("bold", c("cyan", "  MarzTool - Marzban Management Suite")))
         print(c("bold", c("cyan", "=" * 65)))
         print(f"  Daemon  : {status}")
+        print(f"  Web UI  : {web_status}")
         print(f"  Flow    : {flow_display}")
         print(f"  IP Limit: {ip_status}    Telegram: {tg_status}")
         print(f"  Traffic : {vl_status}")
@@ -96,14 +105,24 @@ class TUI:
             return default
 
     def _menu(self, options: list[tuple[str, str]]) -> int:
-        for i, (label, _) in enumerate(options, 1):
-            print(f"  {c('cyan', str(i))}.  {label}")
+        idx = 0
+        for label, key in options:
+            if key == "---":
+                print(f"  {c('dim', '─' * 40)}")
+            else:
+                idx += 1
+                print(f"  {c('cyan', str(idx))}.  {label}")
         print()
         try:
             raw = input("  Choose: ").strip()
             n = int(raw)
-            if 1 <= n <= len(options):
-                return n
+            real = 0
+            for label, key in options:
+                if key == "---":
+                    continue
+                real += 1
+                if real == n:
+                    return n
         except (ValueError, EOFError, KeyboardInterrupt):
             pass
         return 0
@@ -621,25 +640,28 @@ class TUI:
                 print(c("green", f"\n  {username} removed from exempt list."))
 
     def _start_web_dashboard(self):
-        print(c("bold", c("cyan", "\n  === Web Dashboard ===")))
-        from modules.web_daemon import web_daemon_pid, spawn_web_daemon, stop_web_daemon
+        from modules.web_daemon import web_daemon_pid, spawn_web_daemon
+        import socket
 
         pid = web_daemon_pid()
         if pid:
-            print(c("green", f"\n  Web dashboard already running (PID {pid})."))
-            choice = self._ask("Stop it? (y/n)", "n")
-            if choice.lower() == "y":
-                stop_web_daemon()
-                print(c("green", "  Stopped."))
+            print(c("yellow", f"\n  Web dashboard already running (PID {pid})."))
             return
 
+        print(c("bold", c("cyan", "\n  === Start Web Dashboard ===")))
         port = self._ask("Port", str(self.config.get_web_port()))
         self.config.set_web_port(int(port))
 
         pid = spawn_web_daemon(self.config)
         if pid:
-            print(c("green", f"\n  Web dashboard started (PID {pid})."))
-            print(c("dim", f"  Open http://your-ip:{port} in browser."))
+            hostname = socket.gethostname()
+            print()
+            print(c("green", f"  Web dashboard started (PID {pid})"))
+            print()
+            print(c("bold", "  Access URLs:"))
+            print(c("dim",    f"    Local   : http://localhost:{port}"))
+            print(c("dim",    f"    Network : http://{hostname}:{port}"))
+            print()
         else:
             print(c("red", "\n  Failed to start web dashboard."))
 
@@ -860,7 +882,6 @@ class TUI:
                 ("Settlements", "settle"),
                 ("Services (daemon / web)", "submenu_services"),
                 ("Settings & Telegram", "submenu_settings"),
-                ("Web dashboard", "web_dashboard"),
                 ("Update (git pull)", "update"),
                 ("Exit", "exit"),
             ]
@@ -908,10 +929,6 @@ class TUI:
 
             elif action == "submenu_settings":
                 self._submenu_settings()
-
-            elif action == "web_dashboard":
-                self._start_web_dashboard()
-                input("\n  [Enter to continue] ")
 
             elif action == "update":
                 self._update_tool()
@@ -1009,16 +1026,25 @@ class TUI:
             input("\n  [Enter to continue] ")
 
     def _submenu_services(self):
+        from modules.web_daemon import web_daemon_pid, web_daemon_port
         pid = daemon_pid()
+        web_pid = web_daemon_pid()
+
+        options = []
         if pid:
-            options = [
-                ("Stop daemon", "daemon_stop"),
-                ("View daemon logs", "daemon_logs"),
-            ]
+            options.append(("Stop daemon", "daemon_stop"))
+            options.append(("View daemon logs", "daemon_logs"))
         else:
-            options = [
-                ("Start daemon", "daemon_start"),
-            ]
+            options.append(("Start daemon", "daemon_start"))
+
+        options.append(("---", "---"))
+
+        if web_pid:
+            port = web_daemon_port()
+            options.append((f"Stop web dashboard (port {port})", "web_stop"))
+        else:
+            options.append(("Start web dashboard", "web_start"))
+
         options.append(("Back", "back"))
 
         choice = self._menu(options)
@@ -1035,6 +1061,14 @@ class TUI:
             input("\n  [Enter to continue] ")
         elif action == "daemon_logs":
             view_logs()
+            input("\n  [Enter to continue] ")
+        elif action == "web_start":
+            self._start_web_dashboard()
+            input("\n  [Enter to continue] ")
+        elif action == "web_stop":
+            from modules.web_daemon import stop_web_daemon
+            stop_web_daemon()
+            print(c("green", "\n  Web dashboard stopped."))
             input("\n  [Enter to continue] ")
 
     def _submenu_settings(self):
