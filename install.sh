@@ -2,7 +2,7 @@
 set -e
 
 REPO="liwyd/marzTool"
-INSTALL_DIR="/opt/martool"
+INSTALL_DIR="/opt/marztool"
 SYMLINK="/usr/local/bin/marztool"
 
 echo "========================================"
@@ -117,7 +117,7 @@ echo ""
 echo "Creating 'marztool' command..."
 cat > /tmp/marztool_cmd <<'WRAPPER'
 #!/bin/bash
-exec python3 /opt/martool/marzTool.py "$@"
+exec python3 /opt/marztool/marzTool.py "$@"
 WRAPPER
 cp /tmp/marztool_cmd "$SYMLINK"
 chmod +x "$SYMLINK"

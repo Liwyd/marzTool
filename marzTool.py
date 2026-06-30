@@ -15,6 +15,7 @@ Usage:
   python marzTool.py --auto   # start daemon with current settings
   python marzTool.py --master # start master API server
   python marzTool.py --web    # start web dashboard on port 8080
+  python marzTool.py --update # update from git repository
 """
 
 import sys
@@ -107,6 +108,29 @@ def main():
             print("\n  Stopping...")
             dash.stop()
             db.close()
+        return
+
+    if "--update" in args:
+        import subprocess
+        install_dir = os.path.dirname(os.path.abspath(__file__))
+        print("  Updating MarzTool...")
+        try:
+            result = subprocess.run(
+                ["git", "pull"],
+                cwd=install_dir,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
+            if result.returncode == 0:
+                print("  Update complete. Restart daemon if running.")
+            else:
+                print("  Update failed.")
+        except Exception as e:
+            print(f"  Update error: {e}")
         return
 
     tui = TUI()

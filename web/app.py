@@ -425,6 +425,60 @@ class WebDashboard:
                 })
             return jsonify({"users": result, "total": len(result)})
 
+        @app.route("/api/settings/ssl", methods=["GET"])
+        def api_ssl_get():
+            return jsonify({
+                "ssl_cert": config.get_ssl_cert() or "",
+                "ssl_key": config.get_ssl_key() or "",
+            })
+
+        @app.route("/api/settings/ssl", methods=["POST"])
+        def api_ssl_post():
+            data = request.get_json(force=True)
+            if "ssl_cert" in data:
+                config.set_ssl_cert(data["ssl_cert"])
+            if "ssl_key" in data:
+                config.set_ssl_key(data["ssl_key"])
+            return jsonify({"ok": True})
+
+        @app.route("/api/web/status")
+        def api_web_status():
+            from modules.web_daemon import web_daemon_pid, web_daemon_port
+            pid = web_daemon_pid()
+            port = web_daemon_port()
+            return jsonify({"running": pid is not None, "pid": pid, "port": port})
+
+        @app.route("/api/web/start", methods=["POST"])
+        def api_web_start():
+            from modules.web_daemon import spawn_web_daemon
+            pid = spawn_web_daemon(config)
+            return jsonify({"ok": True, "pid": pid})
+
+        @app.route("/api/web/stop", methods=["POST"])
+        def api_web_stop():
+            from modules.web_daemon import stop_web_daemon
+            stop_web_daemon()
+            return jsonify({"ok": True})
+
+        @app.route("/api/update", methods=["POST"])
+        def api_update():
+            import subprocess
+            install_dir = os.path.join(os.path.dirname(__file__), "..")
+            try:
+                result = subprocess.run(
+                    ["git", "pull"],
+                    cwd=install_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                return jsonify({
+                    "ok": True,
+                    "output": result.stdout + result.stderr,
+                })
+            except Exception as e:
+                return jsonify({"ok": False, "error": str(e)})
+
         return app
 
     def start(self):
@@ -443,7 +497,13 @@ class WebDashboard:
             werkzeug.serving.WSGIRequestHandler.log_request = lambda *a, **kw: None
         except Exception:
             pass
-        self.app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False)
+        ssl_cert = self.config.get_ssl_cert()
+        ssl_key = self.config.get_ssl_key()
+        ssl_context = None
+        if ssl_cert and ssl_key and os.path.exists(ssl_cert) and os.path.exists(ssl_key):
+            ssl_context = (ssl_cert, ssl_key)
+            self.log.info("SSL enabled with cert=%s", ssl_cert)
+        self.app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False, ssl_context=ssl_context)
 
     def stop(self):
         self.log.info("Web dashboard stopping.")

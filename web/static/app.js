@@ -1,5 +1,7 @@
 const GB=1024*1024*1024;
 let currentPage='dashboard';
+const PAGE_SIZE=25;
+const pagState={};
 
 document.addEventListener('DOMContentLoaded',()=>{
   initNav();
@@ -43,7 +45,7 @@ function loadPage(page){
     subadmin:()=>{loadCounterSubAdmins();loadVCounterSubAdmins();},
     telegram:()=>{},
     settings:loadSettings,
-    daemon:()=>{loadDaemonStatus();loadDaemonLogs();},
+    daemon:()=>{loadDaemonStatus();loadDaemonLogs();loadWebDaemonStatus();},
   };
   if(loaders[page])loaders[page]();
 }
@@ -66,53 +68,86 @@ function toast(msg,type='info'){
 function fmt(b){return(b/GB).toFixed(2);}
 function fmtDate(s){return s?s.substring(0,16).replace('T',' '):'-';}
 
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function paginate(arr,key,page){
+  pagState[key]=pagState[key]||{page:1};
+  if(page!==undefined)pagState[key].page=page;
+  const p=pagState[key].page;
+  const total=arr.length;
+  const totalPages=Math.ceil(total/PAGE_SIZE)||1;
+  if(p>totalPages)pagState[key].page=totalPages;
+  const cp=pagState[key].page;
+  const start=(cp-1)*PAGE_SIZE;
+  return{items:arr.slice(start,start+PAGE_SIZE),page:cp,totalPages,total};
+}
+
+function renderPager(key,total,totalPages,cb){
+  if(totalPages<=1)return'';
+  let h=`<div class="pager"><span class="pager-info">${total} items</span><div class="pager-btns">`;
+  h+=`<button class="btn btn-sm" onclick="${cb}(1)" ${page===1?'disabled':''}>&laquo;</button>`;
+  h+=`<button class="btn btn-sm" onclick="${cb}(${Math.max(1,pagState[key].page-1)})" ${pagState[key].page===1?'disabled':''}>&lsaquo;</button>`;
+  h+=`<span class="pager-cur">${pagState[key].page} / ${totalPages}</span>`;
+  h+=`<button class="btn btn-sm" onclick="${cb}(${Math.min(totalPages,pagState[key].page+1)})" ${pagState[key].page===totalPages?'disabled':''}>&rsaquo;</button>`;
+  h+=`<button class="btn btn-sm" onclick "${cb}(${totalPages})" ${pagState[key].page===totalPages?'disabled':''}>&raquo;</button>`;
+  h+=`</div></div>`;
+  return h;
+}
+
+function pagerHtml(key,total,totalPages,fnName){
+  if(totalPages<=1)return'';
+  const cp=pagState[key].page;
+  let h=`<div class="pager"><span class="pager-info">${total} items</span><div class="pager-btns">`;
+  h+=`<button class="btn btn-sm" onclick="${fnName}(1)"${cp===1?' disabled':''}>&laquo;</button>`;
+  h+=`<button class="btn btn-sm" onclick="${fnName}(${cp-1})"${cp===1?' disabled':''}>&lsaquo;</button>`;
+  h+=`<span class="pager-cur">${cp} / ${totalPages}</span>`;
+  h+=`<button class="btn btn-sm" onclick="${fnName}(${cp+1})"${cp===totalPages?' disabled':''}>&rsaquo;</button>`;
+  h+=`<button class="btn btn-sm" onclick="${fnName}(${totalPages})"${cp===totalPages?' disabled':''}>&raquo;</button>`;
+  h+=`</div></div>`;
+  return h;
+}
+
 // DASHBOARD
-async function loadDashboard(){
+async function loadDashboard(page){
   const d=await api('/api/summary');
   if(d.error)return;
-  const el=document.getElementById('summaryCards');
-  el.innerHTML=`
+  document.getElementById('summaryCards').innerHTML=`
     <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value primary">${d.total_users}</div></div>
     <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value success">${d.active_users}</div></div>
     <div class="stat-card"><div class="stat-label">Admins</div><div class="stat-value info">${d.admin_count}</div></div>
     <div class="stat-card"><div class="stat-label">Exempt</div><div class="stat-value warning">${d.exempt_count}</div></div>
   `;
-  const tb=document.querySelector('#adminTable tbody');
   const allAdmins=new Set();
   (d.counter_totals||[]).forEach(c=>allAdmins.add(c.admin_username));
   (d.vcounter_totals||[]).forEach(v=>allAdmins.add(v.admin_username));
   Object.keys(d.admins||{}).forEach(a=>allAdmins.add(a));
-  const rows=[];
+  const allRows=[];
   allAdmins.forEach(a=>{
     const ct=(d.counter_totals||[]).find(c=>c.admin_username===a);
     const vt=(d.vcounter_totals||[]).find(v=>v.admin_username===a);
-    rows.push(`<tr><td>${a}</td><td>${d.admins[a]||'-'}</td><td>${ct?ct.total_count:'-'}</td><td>${vt?fmt(vt.total_volume_bytes):'-'}</td></tr>`);
+    allRows.push({admin:a,configs:d.admins[a]||'-',counter:ct?ct.total_count:'-',volume:vt?fmt(vt.total_volume_bytes):'-'});
   });
-  tb.innerHTML=rows.join('')||'<tr><td colspan="4" class="empty">No data</td></tr>';
+  const p=paginate(allRows,'dash',page);
+  const tb=document.querySelector('#adminTable tbody');
+  tb.innerHTML=p.items.map(r=>`<tr><td>${escHtml(r.admin)}</td><td>${r.configs}</td><td>${r.counter}</td><td>${r.volume}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No data</td></tr>';
+  document.getElementById('adminPager').innerHTML=pagerHtml('dash',p.total,p.totalPages,'loadDashboard');
 }
 
 // COUNTER
-async function loadCounter(){
+async function loadCounter(page){
   const d=await api('/api/counter/report?viewer=web');
   if(d.error)return;
-  const el=document.getElementById('counterCards');
-  el.innerHTML=`
+  document.getElementById('counterCards').innerHTML=`
     <div class="stat-card"><div class="stat-label">Total Count</div><div class="stat-value primary">${d.total}</div></div>
     <div class="stat-card"><div class="stat-label">Admins</div><div class="stat-value info">${d.admins.length}</div></div>
   `;
-  const tb=document.querySelector('#counterTable tbody');
-  tb.innerHTML=d.admins.map(a=>`
-    <tr>
-      <td>${a.admin_username}</td>
-      <td><strong>${a.total_count}</strong></td>
-      <td><button class="btn btn-sm btn-primary" onclick="settleCounter('${a.admin_username}')">Settle</button></td>
-    </tr>
-  `).join('')||'<tr><td colspan="3" class="empty">No data</td></tr>';
+  const p=paginate(d.admins,'ct',page);
+  document.querySelector('#counterTable tbody').innerHTML=p.items.map(a=>`<tr><td>${escHtml(a.admin_username)}</td><td><strong>${a.total_count}</strong></td><td><button class="btn btn-sm btn-primary" onclick="settleCounter('${escHtml(a.admin_username)}')">Settle</button></td></tr>`).join('')||'<tr><td colspan="3" class="empty">No data</td></tr>';
+  document.getElementById('counterPager').innerHTML=pagerHtml('ct',p.total,p.totalPages,'loadCounter');
   const s=await api('/api/counter/settlements');
-  const stb=document.querySelector('#counterSettlements tbody');
-  stb.innerHTML=(s.settlements||[]).slice(0,20).map(x=>`
-    <tr><td>${x.admin_username}</td><td>${x.settled_by}</td><td>${x.amount_count}</td><td>${fmtDate(x.settled_at)}</td></tr>
-  `).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
+  const sp=paginate(s.settlements||(),'ct_s',page);
+  document.querySelector('#counterSettlements tbody').innerHTML=sp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${x.amount_count}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
+  document.getElementById('counterSettlementsPager').innerHTML=pagerHtml('ct_s',sp.total,sp.totalPages,'loadCounter');
 }
 
 async function settleCounter(admin){
@@ -131,27 +166,20 @@ async function resetCounter(){
 }
 
 // VCOUNTER
-async function loadVCounter(){
+async function loadVCounter(page){
   const d=await api('/api/vcounter/report?viewer=web');
   if(d.error)return;
-  const el=document.getElementById('vcounterCards');
-  el.innerHTML=`
+  document.getElementById('vcounterCards').innerHTML=`
     <div class="stat-card"><div class="stat-label">Total Volume</div><div class="stat-value primary">${fmt(d.total_bytes)} GB</div></div>
     <div class="stat-card"><div class="stat-label">Admins</div><div class="stat-value info">${d.admins.length}</div></div>
   `;
-  const tb=document.querySelector('#vcounterTable tbody');
-  tb.innerHTML=d.admins.map(a=>`
-    <tr>
-      <td>${a.admin_username}</td>
-      <td><strong>${fmt(a.total_volume_bytes)} GB</strong></td>
-      <td><button class="btn btn-sm btn-primary" onclick="settleVCounter('${a.admin_username}')">Settle</button></td>
-    </tr>
-  `).join('')||'<tr><td colspan="3" class="empty">No data</td></tr>';
+  const p=paginate(d.admins,'vc',page);
+  document.querySelector('#vcounterTable tbody').innerHTML=p.items.map(a=>`<tr><td>${escHtml(a.admin_username)}</td><td><strong>${fmt(a.total_volume_bytes)} GB</strong></td><td><button class="btn btn-sm btn-primary" onclick="settleVCounter('${escHtml(a.admin_username)}')">Settle</button></td></tr>`).join('')||'<tr><td colspan="3" class="empty">No data</td></tr>';
+  document.getElementById('vcounterPager').innerHTML=pagerHtml('vc',p.total,p.totalPages,'loadVCounter');
   const s=await api('/api/vcounter/settlements');
-  const stb=document.querySelector('#vcounterSettlements tbody');
-  stb.innerHTML=(s.settlements||[]).slice(0,20).map(x=>`
-    <tr><td>${x.admin_username}</td><td>${x.settled_by}</td><td>${fmt(x.amount_bytes)}</td><td>${fmtDate(x.settled_at)}</td></tr>
-  `).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
+  const sp=paginate(s.settlements||(),'vc_s',page);
+  document.querySelector('#vcounterSettlements tbody').innerHTML=sp.items.map(x=>`<tr><td>${escHtml(x.admin_username)}</td><td>${escHtml(x.settled_by)}</td><td>${fmt(x.amount_bytes)}</td><td>${fmtDate(x.settled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No settlements</td></tr>';
+  document.getElementById('vcounterSettlementsPager').innerHTML=pagerHtml('vc_s',sp.total,sp.totalPages,'loadVCounter');
 }
 
 async function settleVCounter(admin){
@@ -163,14 +191,13 @@ async function settleVCounter(admin){
 }
 
 // IP LIMIT
-async function loadIpLimits(){
+async function loadIpLimits(page){
   const d=await api('/api/ip/limits');
   if(d.error)return;
-  const tb=document.querySelector('#ipTable tbody');
-  const limits=d.limits||{};
-  tb.innerHTML=Object.entries(limits).map(([u,l])=>`
-    <tr><td>${u}</td><td>${l}</td></tr>
-  `).join('')||'<tr><td colspan="2" class="empty">No limits set</td></tr>';
+  const entries=Object.entries(d.limits||{});
+  const p=paginate(entries.map(([u,l])=>({u,l})),'ip',page);
+  document.querySelector('#ipTable tbody').innerHTML=p.items.map(r=>`<tr><td>${escHtml(r.u)}</td><td>${r.l}</td></tr>`).join('')||'<tr><td colspan="2" class="empty">No limits set</td></tr>';
+  document.getElementById('ipPager').innerHTML=pagerHtml('ip',p.total,p.totalPages,'loadIpLimits');
 }
 
 async function setIpLimit(){
@@ -178,16 +205,14 @@ async function setIpLimit(){
   const l=document.getElementById('ipLimit').value;
   if(!u)return toast('Enter username','error');
   await api('/api/ip/set',{method:'POST',body:JSON.stringify({username:u,limit:parseInt(l)})});
-  toast('IP limit set','success');
-  loadIpLimits();
+  toast('IP limit set','success');loadIpLimits();
 }
 
 async function deleteIpLimit(){
   const u=document.getElementById('ipUsername').value.trim();
   if(!u)return toast('Enter username','error');
   await api('/api/ip/delete',{method:'POST',body:JSON.stringify({username:u})});
-  toast('IP limit removed','success');
-  loadIpLimits();
+  toast('IP limit removed','success');loadIpLimits();
 }
 
 // FLOW
@@ -197,7 +222,6 @@ async function flowSet(){
   document.getElementById('flowResult').innerHTML=`<p>Done. Updated: ${d.updated} | Errors: ${d.errors}</p>`;
   toast('Flow set','success');
 }
-
 async function flowClear(){
   const d=await api('/api/flow/clear',{method:'POST',body:JSON.stringify({})});
   if(d.error){toast(d.error,'error');return;}
@@ -220,118 +244,89 @@ async function saveVolumeConfig(){
   toast('Volume config saved','success');
 }
 
-async function loadExempt(){
+async function loadExempt(page){
   const d=await api('/api/volume/exempt');
   if(d.error)return;
-  const tb=document.querySelector('#exemptTable tbody');
-  tb.innerHTML=(d.exempt||[]).map(e=>`
-    <tr><td>${e.username}</td><td>${fmtDate(e.added_at)}</td></tr>
-  `).join('')||'<tr><td colspan="2" class="empty">No exempt users</td></tr>';
+  const items=(d.exempt||[]);
+  const p=paginate(items,'ex',page);
+  document.querySelector('#exemptTable tbody').innerHTML=p.items.map(e=>`<tr><td>${escHtml(e.username)}</td><td>${fmtDate(e.added_at)}</td></tr>`).join('')||'<tr><td colspan="2" class="empty">No exempt users</td></tr>';
+  document.getElementById('exemptPager').innerHTML=pagerHtml('ex',p.total,p.totalPages,'loadExempt');
 }
 
 async function addExempt(){
   const u=document.getElementById('exemptUsername').value.trim();
   if(!u)return toast('Enter username','error');
   await api('/api/volume/exempt/add',{method:'POST',body:JSON.stringify({username:u})});
-  toast('User exempted','success');
-  document.getElementById('exemptUsername').value='';
-  loadExempt();
+  toast('User exempted','success');document.getElementById('exemptUsername').value='';loadExempt();
 }
-
 async function removeExempt(){
   const u=document.getElementById('exemptUsername').value.trim();
   if(!u)return toast('Enter username','error');
   await api('/api/volume/exempt/remove',{method:'POST',body:JSON.stringify({username:u})});
-  toast('User removed from exempt','success');
-  loadExempt();
+  toast('User removed','success');loadExempt();
 }
 
-async function loadVolumeNotifs(){
+async function loadVolumeNotifs(page){
   const d=await api('/api/volume/notifications');
   if(d.error)return;
-  const tb=document.querySelector('#volNotifTable tbody');
-  tb.innerHTML=(d.notifications||[]).map(n=>`
-    <tr><td>${n.username}</td><td>${n.admin_username||'-'}</td><td>${fmt(n.used_traffic_bytes)}</td><td>${fmtDate(n.disabled_at)}</td></tr>
-  `).join('')||'<tr><td colspan="4" class="empty">No disabled users</td></tr>';
+  const p=paginate(d.notifications||(),'vn',page);
+  document.querySelector('#volNotifTable tbody').innerHTML=p.items.map(n=>`<tr><td>${escHtml(n.username)}</td><td>${escHtml(n.admin_username||'-')}</td><td>${fmt(n.used_traffic_bytes)}</td><td>${fmtDate(n.disabled_at)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No disabled users</td></tr>';
+  document.getElementById('volNotifPager').innerHTML=pagerHtml('vn',p.total,p.totalPages,'loadVolumeNotifs');
 }
 
 // USERS
-async function loadUsers(){
+async function loadUsers(page){
   const d=await api('/api/users');
   if(d.error){toast('Not connected to panel','error');return;}
-  const tb=document.querySelector('#usersTable tbody');
-  tb.innerHTML=(d.users||[]).map(u=>`
-    <tr>
-      <td>${u.username}</td>
-      <td><span class="badge badge-${u.status==='active'?'success':'danger'}">${u.status}</span></td>
-      <td>${u.admin}</td>
-      <td>${u.data_limit?fmt(u.data_limit)+' GB':'Unlimited'}</td>
-      <td>${fmt(u.used_traffic)} GB</td>
-      <td>${fmtDate(u.created_at)}</td>
-    </tr>
-  `).join('')||'<tr><td colspan="6" class="empty">No users</td></tr>';
+  const users=d.users||[];
+  const p=paginate(users,'us',page);
+  document.querySelector('#usersTable tbody').innerHTML=p.items.map(u=>`<tr><td>${escHtml(u.username)}</td><td><span class="badge badge-${u.status==='active'?'success':'danger'}">${u.status}</span></td><td>${escHtml(u.admin)}</td><td>${u.data_limit?fmt(u.data_limit)+' GB':'Unlimited'}</td><td>${fmt(u.used_traffic)} GB</td><td>${fmtDate(u.created_at)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No users</td></tr>';
+  document.getElementById('usersPager').innerHTML=pagerHtml('us',p.total,p.totalPages,'loadUsers');
 }
 
 // SUB-ADMINS
 async function loadCounterSubAdmins(){
   const d=await api('/api/subadmin/counter');
   if(d.error)return;
-  const tb=document.querySelector('#saCounterTable tbody');
-  tb.innerHTML=(d.sub_admins||[]).map(s=>`
-    <tr><td>${s.telegram_id}</td><td>${s.allowed_admins}</td></tr>
-  `).join('')||'<tr><td colspan="2" class="empty">No sub-admins</td></tr>';
+  document.querySelector('#saCounterTable tbody').innerHTML=(d.sub_admins||[]).map(s=>`<tr><td>${s.telegram_id}</td><td>${escHtml(s.allowed_admins)}</td></tr>`).join('')||'<tr><td colspan="2" class="empty">No sub-admins</td></tr>';
 }
-
 async function addCounterSubAdmin(){
   const tid=document.getElementById('saTgId').value.trim();
   const admins=document.getElementById('saAdmins').value.trim().split(',').map(s=>s.trim()).filter(Boolean);
   if(!tid)return toast('Enter Telegram ID','error');
   await api('/api/subadmin/counter/add',{method:'POST',body:JSON.stringify({telegram_id:parseInt(tid),allowed_admins:admins})});
-  toast('Sub-admin added','success');
-  loadCounterSubAdmins();
+  toast('Added','success');loadCounterSubAdmins();
 }
-
 async function removeCounterSubAdmin(){
   const tid=document.getElementById('saTgId').value.trim();
   if(!tid)return toast('Enter Telegram ID','error');
   await api('/api/subadmin/counter/remove',{method:'POST',body:JSON.stringify({telegram_id:parseInt(tid)})});
-  toast('Sub-admin removed','success');
-  loadCounterSubAdmins();
+  toast('Removed','success');loadCounterSubAdmins();
 }
-
 async function loadVCounterSubAdmins(){
   const d=await api('/api/subadmin/vcounter');
   if(d.error)return;
-  const tb=document.querySelector('#saVCounterTable tbody');
-  tb.innerHTML=(d.sub_admins||[]).map(s=>`
-    <tr><td>${s.telegram_id}</td><td>${s.allowed_admins}</td></tr>
-  `).join('')||'<tr><td colspan="2" class="empty">No sub-admins</td></tr>';
+  document.querySelector('#saVCounterTable tbody').innerHTML=(d.sub_admins||[]).map(s=>`<tr><td>${s.telegram_id}</td><td>${escHtml(s.allowed_admins)}</td></tr>`).join('')||'<tr><td colspan="2" class="empty">No sub-admins</td></tr>';
 }
-
 async function addVCounterSubAdmin(){
   const tid=document.getElementById('vcSaTgId').value.trim();
   const admins=document.getElementById('vcSaAdmins').value.trim().split(',').map(s=>s.trim()).filter(Boolean);
   if(!tid)return toast('Enter Telegram ID','error');
   await api('/api/subadmin/vcounter/add',{method:'POST',body:JSON.stringify({telegram_id:parseInt(tid),allowed_admins:admins})});
-  toast('Sub-admin added','success');
-  loadVCounterSubAdmins();
+  toast('Added','success');loadVCounterSubAdmins();
 }
-
 async function removeVCounterSubAdmin(){
   const tid=document.getElementById('vcSaTgId').value.trim();
   if(!tid)return toast('Enter Telegram ID','error');
   await api('/api/subadmin/vcounter/remove',{method:'POST',body:JSON.stringify({telegram_id:parseInt(tid)})});
-  toast('Sub-admin removed','success');
-  loadVCounterSubAdmins();
+  toast('Removed','success');loadVCounterSubAdmins();
 }
 
 // TELEGRAM
 async function testTelegram(){
   document.getElementById('tgResult').innerHTML='<p>Testing...</p>';
   const d=await api('/api/telegram/test',{method:'POST',body:JSON.stringify({})});
-  document.getElementById('tgResult').innerHTML=d.ok
-    ?`<p style="color:var(--success)">${d.message}</p>`
-    :`<p style="color:var(--danger)">${d.message}</p>`;
+  document.getElementById('tgResult').innerHTML=d.ok?`<p style="color:var(--success)">${d.message}</p>`:`<p style="color:var(--danger)">${d.message}</p>`;
 }
 
 // SETTINGS
@@ -354,6 +349,8 @@ async function loadSettings(){
   document.getElementById('setInterval').value=d.daemon_interval||20;
   document.getElementById('setBanTime').value=d.ban_time||4;
   document.getElementById('setSshPort').value=d.ssh_port||22;
+  document.getElementById('setSslCert').value=d.ssl_cert||'';
+  document.getElementById('setSslKey').value=d.ssl_key||'';
 }
 
 async function saveSettings(){
@@ -375,6 +372,8 @@ async function saveSettings(){
     daemon_interval:parseInt(document.getElementById('setInterval').value),
     ban_time:parseInt(document.getElementById('setBanTime').value),
     ssh_port:parseInt(document.getElementById('setSshPort').value),
+    ssl_cert:document.getElementById('setSslCert').value,
+    ssl_key:document.getElementById('setSslKey').value,
   };
   if(pass)data.password=pass;
   const d=await api('/api/settings',{method:'POST',body:JSON.stringify(data)});
@@ -385,29 +384,34 @@ async function saveSettings(){
 // DAEMON
 async function loadDaemonStatus(){
   const d=await api('/api/daemon/status');
-  const el=document.getElementById('daemonStatus');
-  if(d.running){
-    el.innerHTML=`<span class="badge badge-success">RUNNING</span> PID: ${d.pid}`;
-  }else{
-    el.innerHTML=`<span class="badge badge-danger">STOPPED</span>`;
-  }
+  document.getElementById('daemonStatus').innerHTML=d.running?`<span class="badge badge-success">RUNNING</span> PID: ${d.pid}`:`<span class="badge badge-danger">STOPPED</span>`;
 }
-
 async function daemonStart(){
   const d=await api('/api/daemon/start',{method:'POST',body:JSON.stringify({})});
   if(d.error){toast(d.error,'error');return;}
-  toast('Daemon started (PID '+d.pid+')','success');
-  loadDaemonStatus();
+  toast('Daemon started (PID '+d.pid+')','success');loadDaemonStatus();
 }
-
 async function daemonStop(){
   await api('/api/daemon/stop',{method:'POST',body:JSON.stringify({})});
-  toast('Daemon stopped','success');
-  loadDaemonStatus();
+  toast('Daemon stopped','success');loadDaemonStatus();
 }
-
 async function loadDaemonLogs(){
-  const d=await api('/api/daemon/logs?lines=60');
+  const d=await api('/api/daemon/logs?lines=80');
   if(d.error)return;
   document.getElementById('daemonLogs').textContent=d.logs||'No logs yet.';
+}
+
+// WEB DAEMON
+async function loadWebDaemonStatus(){
+  const d=await api('/api/web/status');
+  document.getElementById('webDaemonStatus').innerHTML=d.running?`<span class="badge badge-success">RUNNING</span> Port: ${d.port||'?'}`:`<span class="badge badge-danger">STOPPED</span>`;
+}
+async function webDaemonStart(){
+  const d=await api('/api/web/start',{method:'POST',body:JSON.stringify({})});
+  if(d.error){toast(d.error,'error');return;}
+  toast('Web dashboard started','success');loadWebDaemonStatus();
+}
+async function webDaemonStop(){
+  await api('/api/web/stop',{method:'POST',body:JSON.stringify({})});
+  toast('Web dashboard stopped','success');loadWebDaemonStatus();
 }

@@ -176,6 +176,18 @@ class Config:
     def set_web_port(self, port: int):
         self.db.set_setting("web_port", str(port))
 
+    def get_ssl_cert(self) -> str | None:
+        return self.db.get_setting("ssl_cert")
+
+    def set_ssl_cert(self, path: str):
+        self.db.set_setting("ssl_cert", path)
+
+    def get_ssl_key(self) -> str | None:
+        return self.db.get_setting("ssl_key")
+
+    def set_ssl_key(self, path: str):
+        self.db.set_setting("ssl_key", path)
+
     def get_all_config(self) -> dict:
         return self.db.get_all_settings()
 

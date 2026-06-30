@@ -41,6 +41,7 @@
       <div class="card mt-16">
         <h2>Per Admin</h2>
         <div class="table-wrap"><table id="adminTable"><thead><tr><th>Admin</th><th>Configs</th><th>Counter</th><th>Volume (GB)</th></tr></thead><tbody></tbody></table></div>
+        <div id="adminPager"></div>
       </div>
     </section>
 
@@ -57,10 +58,12 @@
           </div>
         </div>
         <div class="table-wrap"><table id="counterTable"><thead><tr><th>Admin</th><th>Count</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+        <div id="counterPager"></div>
       </div>
       <div class="card mt-16">
         <h2>Settlement History</h2>
         <div class="table-wrap"><table id="counterSettlements"><thead><tr><th>Admin</th><th>Settled By</th><th>Amount</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        <div id="counterSettlementsPager"></div>
       </div>
     </section>
 
@@ -74,10 +77,12 @@
           <button class="btn btn-sm" onclick="loadVCounter()">Refresh</button>
         </div>
         <div class="table-wrap"><table id="vcounterTable"><thead><tr><th>Admin</th><th>Volume (GB)</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+        <div id="vcounterPager"></div>
       </div>
       <div class="card mt-16">
         <h2>Settlement History</h2>
         <div class="table-wrap"><table id="vcounterSettlements"><thead><tr><th>Admin</th><th>Settled By</th><th>Amount (GB)</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        <div id="vcounterSettlementsPager"></div>
       </div>
     </section>
 
@@ -96,6 +101,7 @@
           <button class="btn btn-danger" onclick="deleteIpLimit()">Remove</button>
         </div>
         <div class="table-wrap mt-16"><table id="ipTable"><thead><tr><th>Username</th><th>Limit</th></tr></thead><tbody></tbody></table></div>
+        <div id="ipPager"></div>
       </div>
     </section>
 
@@ -135,10 +141,12 @@
           <button class="btn btn-danger" onclick="removeExempt()">Remove</button>
         </div>
         <div class="table-wrap mt-16"><table id="exemptTable"><thead><tr><th>Username</th><th>Added At</th></tr></thead><tbody></tbody></table></div>
+        <div id="exemptPager"></div>
       </div>
       <div class="card mt-16">
         <h2>Disabled Users (Recent)</h2>
         <div class="table-wrap"><table id="volNotifTable"><thead><tr><th>Username</th><th>Admin</th><th>Used (GB)</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        <div id="volNotifPager"></div>
       </div>
     </section>
 
@@ -151,6 +159,7 @@
           <button class="btn btn-sm" onclick="loadUsers()">Refresh</button>
         </div>
         <div class="table-wrap"><table id="usersTable"><thead><tr><th>Username</th><th>Status</th><th>Admin</th><th>Data Limit</th><th>Used</th><th>Created</th></tr></thead><tbody></tbody></table></div>
+        <div id="usersPager"></div>
       </div>
     </section>
 
@@ -218,6 +227,14 @@
         </div>
       </div>
       <div class="card mt-16">
+        <h2>SSL (for domain)</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Certificate file path</label><input type="text" id="setSslCert" class="input" placeholder="/path/to/cert.pem"></div>
+          <div class="form-group"><label>Key file path</label><input type="text" id="setSslKey" class="input" placeholder="/path/to/key.pem"></div>
+        </div>
+        <p class="mt-8">Set paths to enable HTTPS. Use Let's Encrypt or your own certificates.</p>
+      </div>
+      <div class="card mt-16">
         <h2>Daemon</h2>
         <div class="form-grid">
           <div class="form-group"><label>Interval (seconds)</label><input type="number" id="setInterval" class="input" value="20"></div>
@@ -233,13 +250,23 @@
       <h1>Daemon</h1>
       <div class="card">
         <div class="card-header">
-          <h2>Status</h2>
+          <h2>MarzTool Daemon</h2>
           <div class="btn-group">
             <button class="btn btn-success" onclick="daemonStart()">Start</button>
             <button class="btn btn-danger" onclick="daemonStop()">Stop</button>
           </div>
         </div>
         <div id="daemonStatus" class="mt-16"></div>
+      </div>
+      <div class="card mt-16">
+        <div class="card-header">
+          <h2>Web Dashboard</h2>
+          <div class="btn-group">
+            <button class="btn btn-success btn-sm" onclick="webDaemonStart()">Start</button>
+            <button class="btn btn-danger btn-sm" onclick="webDaemonStop()">Stop</button>
+          </div>
+        </div>
+        <div id="webDaemonStatus" class="mt-16"></div>
       </div>
       <div class="card mt-16">
         <h2>Logs</h2>

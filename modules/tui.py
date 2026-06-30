@@ -622,26 +622,24 @@ class TUI:
 
     def _start_web_dashboard(self):
         print(c("bold", c("cyan", "\n  === Web Dashboard ===")))
-        try:
-            from web.app import WebDashboard
-        except ImportError:
-            print(c("red", "\n  Flask not installed. Run: pip install flask"))
+        from modules.web_daemon import web_daemon_pid, spawn_web_daemon, stop_web_daemon
+
+        pid = web_daemon_pid()
+        if pid:
+            print(c("green", f"\n  Web dashboard already running (PID {pid})."))
+            choice = self._ask("Stop it? (y/n)", "n")
+            if choice.lower() == "y":
+                stop_web_daemon()
+                print(c("green", "  Stopped."))
             return
 
         port = self._ask("Port", str(self.config.get_web_port()))
         self.config.set_web_port(int(port))
 
-        import logging
-        log = logging.getLogger("web_tui")
-        log.setLevel(logging.INFO)
-        h = logging.StreamHandler()
-        h.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", "%Y-%m-%d %H:%M:%S"))
-        log.addHandler(h)
-
-        dash = WebDashboard(self.db, self.config, port=int(port), logger=log)
-        if dash.start():
-            print(c("green", f"\n  Web dashboard running at http://0.0.0.0:{port}"))
-            print(c("dim", "  Press Ctrl+C in the dashboard terminal to stop."))
+        pid = spawn_web_daemon(self.config)
+        if pid:
+            print(c("green", f"\n  Web dashboard started (PID {pid})."))
+            print(c("dim", f"  Open http://your-ip:{port} in browser."))
         else:
             print(c("red", "\n  Failed to start web dashboard."))
 

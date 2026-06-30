@@ -438,3 +438,10 @@ select.input{cursor:pointer;}
 
 /* EMPTY STATE */
 .empty{text-align:center;padding:32px;color:var(--text2);font-size:13px;}
+
+/* PAGER */
+.pager{display:flex;align-items:center;justify-content:space-between;padding:12px 0;gap:8px;flex-wrap:wrap;}
+.pager-info{font-size:12px;color:var(--text2);}
+.pager-btns{display:flex;align-items:center;gap:4px;}
+.pager-cur{font-size:12px;font-weight:500;padding:0 8px;color:var(--text2);}
+.pager-btns .btn{min-width:32px;padding:4px 8px;font-size:12px;}
