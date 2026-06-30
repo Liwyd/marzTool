@@ -363,8 +363,9 @@ async function loadSettings(){
   document.getElementById('setInterval').value=d.daemon_interval||20;
   document.getElementById('setBanTime').value=d.ban_time||4;
   document.getElementById('setSshPort').value=d.ssh_port||22;
-  document.getElementById('setSslCert').value=d.ssl_cert||'';
-  document.getElementById('setSslKey').value=d.ssl_key||'';
+  document.getElementById('sslDomain').value=d.ssl_domain||'';
+  const hasSsl=d.ssl_cert&&d.ssl_key;
+  document.getElementById('sslStatus').innerHTML=hasSsl?`<span class="badge badge-success">SSL Active</span> ${escHtml(d.ssl_cert)}`:`<span class="badge badge-warning">No SSL</span>`;
   updateFeatureSubRows();
 }
 
@@ -397,13 +398,29 @@ async function saveSettings(){
     daemon_interval:parseInt(document.getElementById('setInterval').value),
     ban_time:parseInt(document.getElementById('setBanTime').value),
     ssh_port:parseInt(document.getElementById('setSshPort').value),
-    ssl_cert:document.getElementById('setSslCert').value,
-    ssl_key:document.getElementById('setSslKey').value,
   };
   if(pass)data.password=pass;
   const d=await api('/api/settings',{method:'POST',body:JSON.stringify(data)});
   if(d.error){toast(d.error,'error');return;}
   toast('Settings saved','success');
+}
+
+// SSL
+async function getSslCert(){
+  const domain=document.getElementById('sslDomain').value.trim();
+  const email=document.getElementById('sslEmail').value.trim();
+  if(!domain)return toast('Enter domain','error');
+  if(!email)return toast('Enter email','error');
+  document.getElementById('sslResult').innerHTML='<p style="color:var(--info)">Obtaining SSL certificate... This may take a minute.</p>';
+  const d=await api('/api/ssl/get',{method:'POST',body:JSON.stringify({domain,email})});
+  if(d.ok){
+    document.getElementById('sslResult').innerHTML=`<p style="color:var(--success)">SSL obtained via ${d.used}. Cert: ${d.cert}</p>`;
+    document.getElementById('sslStatus').innerHTML=`<span class="badge badge-success">SSL Active</span> ${escHtml(d.cert)}`;
+    toast('SSL certificate obtained','success');
+  }else{
+    document.getElementById('sslResult').innerHTML=`<p style="color:var(--danger)">${escHtml(d.error||'Failed')}</p>`;
+    toast('SSL failed','error');
+  }
 }
 
 // DAEMON

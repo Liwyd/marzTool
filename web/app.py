@@ -441,6 +441,78 @@ class WebDashboard:
                 config.set_ssl_key(data["ssl_key"])
             return jsonify({"ok": True})
 
+        @app.route("/api/ssl/get", methods=["POST"])
+        def api_ssl_get_cert():
+            import subprocess
+            data = request.get_json(force=True)
+            email = data.get("email", "").strip()
+            domain = data.get("domain", "").strip()
+            if not email or not domain:
+                return jsonify({"ok": False, "error": "email and domain required"}), 400
+
+            cert_dir = f"/opt/marztool/certs/{domain}"
+            os.makedirs(cert_dir, exist_ok=True)
+
+            def _run_ssl():
+                acme = os.path.expanduser("~/.acme.sh/acme.sh")
+                used = "acme.sh"
+
+                if not os.path.exists(acme):
+                    r = subprocess.run(
+                        ["curl", "-s", "https://get.acme.sh", "|", "sh", "-s", "email=" + email],
+                        shell=True, capture_output=True, text=True, timeout=60,
+                    )
+                    if not os.path.exists(acme):
+                        return None, "Failed to install acme.sh"
+
+                r = subprocess.run(
+                    [acme, "--issue", "--standalone", "-d", domain, "--accountemail", email],
+                    capture_output=True, text=True, timeout=120,
+                )
+                if r.returncode != 0:
+                    r2 = subprocess.run(
+                        ["certbot", "certonly", "--standalone", "-d", domain,
+                         "--non-interactive", "--agree-tos", "--email", email],
+                        capture_output=True, text=True, timeout=120,
+                    )
+                    if r2.returncode != 0:
+                        return None, f"acme.sh failed: {r.stderr[:200]}\ncertbot failed: {r2.stderr[:200]}"
+                    used = "certbot"
+                    subprocess.run(
+                        ["cp", f"/etc/letsencrypt/live/{domain}/privkey.pem", f"{cert_dir}/privkey.pem"],
+                        timeout=10,
+                    )
+                    subprocess.run(
+                        ["cp", f"/etc/letsencrypt/live/{domain}/fullchain.pem", f"{cert_dir}/fullchain.pem"],
+                        timeout=10,
+                    )
+                else:
+                    r3 = subprocess.run(
+                        [acme, "--install-cert", "-d", domain,
+                         "--key-file", f"{cert_dir}/privkey.pem",
+                         "--fullchain-file", f"{cert_dir}/fullchain.pem"],
+                        capture_output=True, text=True, timeout=60,
+                    )
+                    if r3.returncode != 0:
+                        return None, f"Install cert failed: {r3.stderr[:200]}"
+
+                cert_path = f"{cert_dir}/fullchain.pem"
+                key_path = f"{cert_dir}/privkey.pem"
+                if os.path.exists(cert_path) and os.path.exists(key_path):
+                    config.set_ssl_cert(cert_path)
+                    config.set_ssl_key(key_path)
+                    config.set_ssl_domain(domain)
+                    return {"cert": cert_path, "key": key_path, "used": used}, None
+                return None, "Certificate files not found after issuance"
+
+            try:
+                result, err = _run_ssl()
+                if err:
+                    return jsonify({"ok": False, "error": err}), 500
+                return jsonify({"ok": True, **result})
+            except Exception as e:
+                return jsonify({"ok": False, "error": str(e)}), 500
+
         @app.route("/api/web/status")
         def api_web_status():
             from modules.web_daemon import web_daemon_pid, web_daemon_port

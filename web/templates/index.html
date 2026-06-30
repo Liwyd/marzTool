@@ -278,12 +278,15 @@
         </div>
       </div>
       <div class="card mt-16">
-        <h2>SSL (for domain)</h2>
-        <div class="form-grid">
-          <div class="form-group"><label>Certificate file path</label><input type="text" id="setSslCert" class="input" placeholder="/path/to/cert.pem"></div>
-          <div class="form-group"><label>Key file path</label><input type="text" id="setSslKey" class="input" placeholder="/path/to/key.pem"></div>
+        <h2>SSL (Auto-provision)</h2>
+        <p class="mb-12">Enter your domain and email to get a free SSL certificate automatically via acme.sh / Let's Encrypt.</p>
+        <div class="form-row">
+          <input type="text" id="sslDomain" class="input" placeholder="yourdomain.com">
+          <input type="email" id="sslEmail" class="input" placeholder="you@email.com">
+          <button class="btn btn-primary" onclick="getSslCert()">Get SSL Certificate</button>
         </div>
-        <p class="mt-8">Set paths to enable HTTPS. Use Let's Encrypt or your own certificates.</p>
+        <div id="sslResult" class="mt-12"></div>
+        <div class="ssl-status mt-12" id="sslStatus"></div>
       </div>
       <div class="card mt-16">
         <h2>Daemon</h2>

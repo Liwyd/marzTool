@@ -188,6 +188,12 @@ class Config:
     def set_ssl_key(self, path: str):
         self.db.set_setting("ssl_key", path)
 
+    def get_ssl_domain(self) -> str | None:
+        return self.db.get_setting("ssl_domain")
+
+    def set_ssl_domain(self, domain: str):
+        self.db.set_setting("ssl_domain", domain)
+
     def get_all_config(self) -> dict:
         return self.db.get_all_settings()
 
