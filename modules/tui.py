@@ -988,6 +988,8 @@ class TUI:
             input("\n  [Enter to continue] ")
 
     def _submenu_traffic(self):
+        print(c("dim", "\n  For unlimited configs with fair usage — monitors consumed traffic"))
+        print(c("dim", "  in the background and auto-disables users who exceed the threshold.\n"))
         options = [
             ("Traffic limit settings", "vl_config"),
             ("Manage exempt users", "vl_exempt_list"),
