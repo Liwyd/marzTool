@@ -33,7 +33,7 @@ install_deps() {
 }
 
 install_deps_flask() {
-    echo "  Installing Flask (for master mode)..."
+    echo "  Installing Flask (for web dashboard and master mode)..."
     $PY -m pip install --quiet --break-system-packages flask 2>/dev/null || \
     $PY -m pip install --quiet flask
     echo "  Flask installed."
