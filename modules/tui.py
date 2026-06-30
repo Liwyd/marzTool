@@ -105,27 +105,24 @@ class TUI:
             return default
 
     def _menu(self, options: list[tuple[str, str]]) -> int:
+        display_to_idx = []
         idx = 0
         for label, key in options:
             if key == "---":
                 print(f"  {c('dim', '─' * 40)}")
             else:
-                idx += 1
-                print(f"  {c('cyan', str(idx))}.  {label}")
+                display_to_idx.append(idx)
+                print(f"  {c('cyan', str(len(display_to_idx)))}.  {label}")
+            idx += 1
         print()
         try:
             raw = input("  Choose: ").strip()
             n = int(raw)
-            real = 0
-            for label, key in options:
-                if key == "---":
-                    continue
-                real += 1
-                if real == n:
-                    return n
+            if 1 <= n <= len(display_to_idx):
+                return display_to_idx[n - 1]
         except (ValueError, EOFError, KeyboardInterrupt):
             pass
-        return 0
+        return -1
 
     def _ensure_client(self) -> bool:
         url = self.config.get_server_url()
@@ -887,10 +884,10 @@ class TUI:
             ]
 
             choice = self._menu(main_options)
-            if choice == 0:
+            if choice == -1:
                 continue
 
-            action = main_options[choice - 1][1]
+            action = main_options[choice][1]
 
             if action == "exit":
                 print("\n  Goodbye.\n")
@@ -942,9 +939,9 @@ class TUI:
             ("Back", "back"),
         ]
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "flow_config":
             self._configure_flow()
             input("\n  [Enter to continue] ")
@@ -963,9 +960,9 @@ class TUI:
             ("Back", "back"),
         ]
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "ip_config":
             self._setup_ip_limit()
             input("\n  [Enter to continue] ")
@@ -983,9 +980,9 @@ class TUI:
             ("Back", "back"),
         ]
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "counter_view":
             self._view_counter()
             input("\n  [Enter to continue] ")
@@ -999,9 +996,9 @@ class TUI:
             ("Back", "back"),
         ]
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "vcounter_view":
             self._view_vcounter()
             input("\n  [Enter to continue] ")
@@ -1015,9 +1012,9 @@ class TUI:
             ("Back", "back"),
         ]
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "vl_config":
             self._setup_volume_limit()
             input("\n  [Enter to continue] ")
@@ -1048,9 +1045,9 @@ class TUI:
         options.append(("Back", "back"))
 
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "daemon_start":
             self._start_daemon()
             input("\n  [Enter to continue] ")
@@ -1083,9 +1080,9 @@ class TUI:
         options.append(("Back", "back"))
 
         choice = self._menu(options)
-        if choice == 0:
+        if choice == -1:
             return
-        action = options[choice - 1][1]
+        action = options[choice][1]
         if action == "settings":
             self._view_settings()
             input("\n  [Enter to continue] ")
