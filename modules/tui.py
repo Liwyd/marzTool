@@ -620,6 +620,31 @@ class TUI:
                 self.db.remove_exempt(username)
                 print(c("green", f"\n  {username} removed from exempt list."))
 
+    def _start_web_dashboard(self):
+        print(c("bold", c("cyan", "\n  === Web Dashboard ===")))
+        try:
+            from web.app import WebDashboard
+        except ImportError:
+            print(c("red", "\n  Flask not installed. Run: pip install flask"))
+            return
+
+        port = self._ask("Port", str(self.config.get_web_port()))
+        self.config.set_web_port(int(port))
+
+        import logging
+        log = logging.getLogger("web_tui")
+        log.setLevel(logging.INFO)
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", "%Y-%m-%d %H:%M:%S"))
+        log.addHandler(h)
+
+        dash = WebDashboard(self.db, self.config, port=int(port), logger=log)
+        if dash.start():
+            print(c("green", f"\n  Web dashboard running at http://0.0.0.0:{port}"))
+            print(c("dim", "  Press Ctrl+C in the dashboard terminal to stop."))
+        else:
+            print(c("red", "\n  Failed to start web dashboard."))
+
     def _view_vcounter(self):
         print(c("bold", c("cyan", "\n  === VCounter Report ===")))
         from modules.vcounter import VCounter
@@ -827,6 +852,7 @@ class TUI:
             options.append(("Master / Node configuration", "master_node"))
             if self.config.get_master_enabled():
                 options.append(("View multi-server dashboard", "dashboard"))
+            options.append(("Web dashboard", "web_dashboard"))
             options.append(("Exit", "exit"))
 
             choice = self._menu(options)
@@ -926,4 +952,8 @@ class TUI:
 
             elif action == "dashboard":
                 self._view_dashboard()
+                input("\n  [Enter to continue] ")
+
+            elif action == "web_dashboard":
+                self._start_web_dashboard()
                 input("\n  [Enter to continue] ")

@@ -162,6 +162,20 @@ class Config:
     def set_master_url(self, url: str):
         self.db.set_setting("master_url", url)
 
+    def get_web_enabled(self) -> bool:
+        val = self.db.get_setting("web_enabled")
+        return val == "true" if val is not None else False
+
+    def set_web_enabled(self, enabled: bool):
+        self.db.set_setting("web_enabled", "true" if enabled else "false")
+
+    def get_web_port(self) -> int:
+        val = self.db.get_setting("web_port")
+        return int(val) if val is not None else 8080
+
+    def set_web_port(self, port: int):
+        self.db.set_setting("web_port", str(port))
+
     def get_all_config(self) -> dict:
         return self.db.get_all_settings()
 

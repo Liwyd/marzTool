@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarzTool Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">MT</div>
+      <span class="logo-text">MarzTool</span>
+    </div>
+    <ul class="nav-links">
+      <li class="active" data-page="dashboard"><span class="nav-icon">&#9632;</span> Dashboard</li>
+      <li data-page="counter"><span class="nav-icon">#</span> Counter</li>
+      <li data-page="vcounter"><span class="nav-icon">V</span> VCounter</li>
+      <li data-page="iplimit"><span class="nav-icon">IP</span> IP Limit</li>
+      <li data-page="flow"><span class="nav-icon">F</span> Flow</li>
+      <li data-page="volume"><span class="nav-icon">GB</span> Volume Limit</li>
+      <li data-page="users"><span class="nav-icon">U</span> Users</li>
+      <li data-page="subadmin"><span class="nav-icon">SA</span> Sub-Admins</li>
+      <li data-page="telegram"><span class="nav-icon">TG</span> Telegram</li>
+      <li data-page="settings"><span class="nav-icon">*</span> Settings</li>
+      <li data-page="daemon"><span class="nav-icon">D</span> Daemon</li>
+    </ul>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">&#9681;</button>
+    </div>
+  </nav>
+
+  <main class="content">
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <h1>Dashboard</h1>
+      <div class="cards" id="summaryCards"></div>
+      <div class="card mt-16">
+        <h2>Per Admin</h2>
+        <div class="table-wrap"><table id="adminTable"><thead><tr><th>Admin</th><th>Configs</th><th>Counter</th><th>Volume (GB)</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- COUNTER -->
+    <section class="page" id="page-counter">
+      <h1>Counter</h1>
+      <div class="cards" id="counterCards"></div>
+      <div class="card mt-16">
+        <div class="card-header">
+          <h2>Admin Counts</h2>
+          <div class="btn-group">
+            <button class="btn btn-sm" onclick="loadCounter()">Refresh</button>
+            <button class="btn btn-sm btn-danger" onclick="resetCounter()">Reset All</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="counterTable"><thead><tr><th>Admin</th><th>Count</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card mt-16">
+        <h2>Settlement History</h2>
+        <div class="table-wrap"><table id="counterSettlements"><thead><tr><th>Admin</th><th>Settled By</th><th>Amount</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- VCOUNTER -->
+    <section class="page" id="page-vcounter">
+      <h1>VCounter</h1>
+      <div class="cards" id="vcounterCards"></div>
+      <div class="card mt-16">
+        <div class="card-header">
+          <h2>Admin Volumes</h2>
+          <button class="btn btn-sm" onclick="loadVCounter()">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="vcounterTable"><thead><tr><th>Admin</th><th>Volume (GB)</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card mt-16">
+        <h2>Settlement History</h2>
+        <div class="table-wrap"><table id="vcounterSettlements"><thead><tr><th>Admin</th><th>Settled By</th><th>Amount (GB)</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- IP LIMIT -->
+    <section class="page" id="page-iplimit">
+      <h1>IP Limit</h1>
+      <div class="card">
+        <div class="card-header">
+          <h2>IP Limits per User</h2>
+          <button class="btn btn-sm" onclick="loadIpLimits()">Refresh</button>
+        </div>
+        <div class="form-row">
+          <input type="text" id="ipUsername" placeholder="Username" class="input">
+          <input type="number" id="ipLimit" placeholder="Max IPs" value="1" class="input input-sm">
+          <button class="btn" onclick="setIpLimit()">Set</button>
+          <button class="btn btn-danger" onclick="deleteIpLimit()">Remove</button>
+        </div>
+        <div class="table-wrap mt-16"><table id="ipTable"><thead><tr><th>Username</th><th>Limit</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- FLOW -->
+    <section class="page" id="page-flow">
+      <h1>VLESS Flow</h1>
+      <div class="card">
+        <p>Set or clear <code>xtls-rprx-vision</code> flow on all VLESS users.</p>
+        <div class="btn-group mt-16">
+          <button class="btn btn-primary" onclick="flowSet()">Set Flow (xtls-rprx-vision)</button>
+          <button class="btn btn-danger" onclick="flowClear()">Clear Flow</button>
+        </div>
+        <div id="flowResult" class="mt-16"></div>
+      </div>
+    </section>
+
+    <!-- VOLUME LIMIT -->
+    <section class="page" id="page-volume">
+      <h1>Volume Limit</h1>
+      <div class="card">
+        <h2>Configuration</h2>
+        <div class="form-row">
+          <label>Limit (GB)</label>
+          <input type="number" id="volLimitGb" class="input input-sm" value="250">
+          <label class="toggle-label"><input type="checkbox" id="volEnabled"> Enabled</label>
+          <button class="btn" onclick="saveVolumeConfig()">Save</button>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <div class="card-header">
+          <h2>Exempt Users</h2>
+          <button class="btn btn-sm" onclick="loadExempt()">Refresh</button>
+        </div>
+        <div class="form-row">
+          <input type="text" id="exemptUsername" placeholder="Username" class="input">
+          <button class="btn" onclick="addExempt()">Add</button>
+          <button class="btn btn-danger" onclick="removeExempt()">Remove</button>
+        </div>
+        <div class="table-wrap mt-16"><table id="exemptTable"><thead><tr><th>Username</th><th>Added At</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card mt-16">
+        <h2>Disabled Users (Recent)</h2>
+        <div class="table-wrap"><table id="volNotifTable"><thead><tr><th>Username</th><th>Admin</th><th>Used (GB)</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- USERS -->
+    <section class="page" id="page-users">
+      <h1>Users</h1>
+      <div class="card">
+        <div class="card-header">
+          <h2>All Panel Users</h2>
+          <button class="btn btn-sm" onclick="loadUsers()">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="usersTable"><thead><tr><th>Username</th><th>Status</th><th>Admin</th><th>Data Limit</th><th>Used</th><th>Created</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- SUB-ADMINS -->
+    <section class="page" id="page-subadmin">
+      <h1>Sub-Admins</h1>
+      <div class="card">
+        <h2>Counter Sub-Admins</h2>
+        <div class="form-row">
+          <input type="number" id="saTgId" placeholder="Telegram ID" class="input">
+          <input type="text" id="saAdmins" placeholder="Allowed admins (comma separated)" class="input">
+          <button class="btn" onclick="addCounterSubAdmin()">Add</button>
+          <button class="btn btn-danger" onclick="removeCounterSubAdmin()">Remove</button>
+        </div>
+        <div class="table-wrap mt-16"><table id="saCounterTable"><thead><tr><th>Telegram ID</th><th>Allowed Admins</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card mt-16">
+        <h2>VCounter Sub-Admins</h2>
+        <div class="form-row">
+          <input type="number" id="vcSaTgId" placeholder="Telegram ID" class="input">
+          <input type="text" id="vcSaAdmins" placeholder="Allowed admins (comma separated)" class="input">
+          <button class="btn" onclick="addVCounterSubAdmin()">Add</button>
+          <button class="btn btn-danger" onclick="removeVCounterSubAdmin()">Remove</button>
+        </div>
+        <div class="table-wrap mt-16"><table id="saVCounterTable"><thead><tr><th>Telegram ID</th><th>Allowed Admins</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- TELEGRAM -->
+    <section class="page" id="page-telegram">
+      <h1>Telegram Bot</h1>
+      <div class="card">
+        <h2>Test Connection</h2>
+        <p>Test API connectivity, bot token, admin chat, and send a test message.</p>
+        <button class="btn btn-primary mt-16" onclick="testTelegram()">Send Test</button>
+        <div id="tgResult" class="mt-16"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <h1>Settings</h1>
+      <div class="card">
+        <h2>Panel Connection</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Server URL</label><input type="text" id="setUrl" class="input" placeholder="https://panel.example.com"></div>
+          <div class="form-group"><label>Admin Username</label><input type="text" id="setUser" class="input"></div>
+          <div class="form-group"><label>Admin Password</label><input type="password" id="setPass" class="input"></div>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <h2>Features</h2>
+        <div class="form-grid">
+          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setFlow"> Flow updater</label></div>
+          <div class="form-group"><label>Flow Value</label><input type="text" id="setFlowVal" class="input" value="xtls-rprx-vision"></div>
+          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setIp"> IP limiter</label></div>
+          <div class="form-group"><label>Max IPs</label><input type="number" id="setIpAll" class="input" value="1"></div>
+          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setCounter"> Counter</label></div>
+          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setVcounter"> VCounter</label></div>
+          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setVol"> Volume limit</label></div>
+          <div class="form-group"><label>Volume limit (GB)</label><input type="number" id="setVolGb" class="input" value="250"></div>
+          <div class="form-group"><label class="toggle-label"><input type="checkbox" id="setTg"> Telegram</label></div>
+          <div class="form-group"><label>Bot Token</label><input type="text" id="setTgToken" class="input"></div>
+          <div class="form-group"><label>Admin Chat ID</label><input type="text" id="setTgAdmin" class="input"></div>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <h2>Daemon</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Interval (seconds)</label><input type="number" id="setInterval" class="input" value="20"></div>
+          <div class="form-group"><label>Ban time (minutes)</label><input type="number" id="setBanTime" class="input" value="4"></div>
+          <div class="form-group"><label>SSH port</label><input type="number" id="setSshPort" class="input" value="22"></div>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-16" onclick="saveSettings()">Save All Settings</button>
+    </section>
+
+    <!-- DAEMON -->
+    <section class="page" id="page-daemon">
+      <h1>Daemon</h1>
+      <div class="card">
+        <div class="card-header">
+          <h2>Status</h2>
+          <div class="btn-group">
+            <button class="btn btn-success" onclick="daemonStart()">Start</button>
+            <button class="btn btn-danger" onclick="daemonStop()">Stop</button>
+          </div>
+        </div>
+        <div id="daemonStatus" class="mt-16"></div>
+      </div>
+      <div class="card mt-16">
+        <h2>Logs</h2>
+        <div class="log-box" id="daemonLogs"></div>
+        <button class="btn btn-sm mt-8" onclick="loadDaemonLogs()">Refresh</button>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

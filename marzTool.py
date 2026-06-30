@@ -8,11 +8,13 @@ A unified tool for managing Marzban panels with features:
   - Unified daemon for background operation
   - Telegram bot integration
   - Multi-server master/node management
+  - Web dashboard
 
 Usage:
   python marzTool.py          # interactive TUI
   python marzTool.py --auto   # start daemon with current settings
-  python marzTool.py --master # start master API server only
+  python marzTool.py --master # start master API server
+  python marzTool.py --web    # start web dashboard on port 8080
 """
 
 import sys
@@ -73,6 +75,37 @@ def main():
         except KeyboardInterrupt:
             print("\n  Stopping...")
             api.stop()
+            db.close()
+        return
+
+    if "--web" in args:
+        import logging
+        log = logging.getLogger("web_standalone")
+        log.setLevel(logging.INFO)
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", "%Y-%m-%d %H:%M:%S"))
+        log.addHandler(h)
+
+        port = 8080
+        if "--port" in args:
+            idx = args.index("--port")
+            if idx + 1 < len(args):
+                port = int(args[idx + 1])
+
+        db = Database()
+        config = Config(db)
+        from web.app import WebDashboard
+        dash = WebDashboard(db, config, port=port, logger=log)
+        dash.start()
+        print(f"  Web dashboard running at http://0.0.0.0:{port}")
+        print("  Press Ctrl+C to stop.")
+        try:
+            import time
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n  Stopping...")
+            dash.stop()
             db.close()
         return
 
