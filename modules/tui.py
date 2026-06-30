@@ -687,6 +687,100 @@ class TUI:
         else:
             print(c("red", f"  Update failed:\n{result.stderr.strip()}"))
 
+    def _setup_ssl(self):
+        import subprocess as _sp
+        import os
+        print(c("bold", c("cyan", "\n  === SSL Certificate Setup ===")))
+        print(c("dim", "  Auto-provisions SSL certificate for HTTPS using acme.sh"))
+        print(c("dim", "  (falls back to certbot if acme.sh not installed)\n"))
+
+        current_cert = self.config.get_ssl_cert()
+        current_key = self.config.get_ssl_key()
+        if current_cert and current_key:
+            print(c("green", f"  Current cert: {current_cert}"))
+            print(c("green", f"  Current key : {current_key}"))
+            print()
+
+        domain = self._ask("Domain name", "")
+        email = self._ask("Email for Let's Encrypt", "")
+        if not domain or not email:
+            print(c("red", "  Domain and email are required."))
+            return
+
+        cert_dir = f"/opt/marztool/certs/{domain}"
+        os.makedirs(cert_dir, exist_ok=True)
+
+        acme = os.path.expanduser("~/.acme.sh/acme.sh")
+        used = "acme.sh"
+
+        if not os.path.exists(acme):
+            print(c("dim", "  Installing acme.sh..."))
+            r = _sp.run(
+                ["curl", "-s", "https://get.acme.sh"],
+                capture_output=True, text=True, timeout=30,
+            )
+            _sp.run(
+                ["sh", "-s", "email=" + email],
+                input=r.stdout, capture_output=True, text=True, timeout=60,
+            )
+            if not os.path.exists(acme):
+                print(c("yellow", "  acme.sh install failed, trying certbot..."))
+                used = "certbot"
+                r = _sp.run(
+                    ["certbot", "certonly", "--standalone", "-d", domain, "--non-interactive", "--agree-tos", "-m", email],
+                    capture_output=True, text=True, timeout=120,
+                )
+                if r.returncode != 0:
+                    print(c("red", f"  certbot failed:\n{r.stderr.strip()}"))
+                    return
+                cert_path = f"/etc/letsencrypt/live/{domain}/fullchain.pem"
+                key_path = f"/etc/letsencrypt/live/{domain}/privkey.pem"
+            else:
+                print(c("dim", "  Issuing certificate..."))
+                r = _sp.run(
+                    [acme, "--issue", "--standalone", "-d", domain, "--accountemail", email],
+                    capture_output=True, text=True, timeout=120,
+                )
+                if r.returncode != 0:
+                    print(c("red", f"  acme.sh failed:\n{r.stderr.strip()}"))
+                    return
+                cert_path = os.path.expanduser(f"~/.acme.sh/{domain}_ecc/fullchain.cer")
+                key_path = os.path.expanduser(f"~/.acme.sh/{domain}_ecc/{domain}.key")
+        else:
+            print(c("dim", "  Issuing certificate with acme.sh..."))
+            r = _sp.run(
+                [acme, "--issue", "--standalone", "-d", domain, "--accountemail", email],
+                capture_output=True, text=True, timeout=120,
+            )
+            if r.returncode != 0:
+                print(c("red", f"  acme.sh failed:\n{r.stderr.strip()}"))
+                return
+            cert_path = os.path.expanduser(f"~/.acme.sh/{domain}_ecc/fullchain.cer")
+            key_path = os.path.expanduser(f"~/.acme.sh/{domain}_ecc/{domain}.key")
+
+        print(c("dim", f"  Installing certificate to {cert_dir}..."))
+        _sp.run([acme if used == "acme.sh" else "certbot", "install-cert" if used == "acme.sh" else "cert",
+                  "-d", domain, "--key-file", f"{cert_dir}/privkey.pem",
+                  "--fullchain-file", f"{cert_dir}/fullchain.pem",
+                  "--reloadcmd", "echo reloaded"],
+                 capture_output=True, text=True, timeout=30) if used == "acme.sh" else None
+
+        import shutil
+        if used == "certbot" or not os.path.exists(f"{cert_dir}/fullchain.pem"):
+            for src, name in [(cert_path, "fullchain.pem"), (key_path, "privkey.pem")]:
+                if os.path.exists(src):
+                    shutil.copy2(src, f"{cert_dir}/{name}")
+
+        if os.path.exists(f"{cert_dir}/fullchain.pem") and os.path.exists(f"{cert_dir}/privkey.pem"):
+            self.config.set_ssl_cert(f"{cert_dir}/fullchain.pem")
+            self.config.set_ssl_key(f"{cert_dir}/privkey.pem")
+            print(c("green", f"\n  SSL certificate installed successfully!"))
+            print(c("dim", f"  Cert: {cert_dir}/fullchain.pem"))
+            print(c("dim", f"  Key : {cert_dir}/privkey.pem"))
+            print(c("dim", "  Restart web dashboard to apply."))
+        else:
+            print(c("red", "\n  Certificate files not found after install."))
+
     def _view_vcounter(self):
         print(c("bold", c("cyan", "\n  === Bandwidth Tracker Report ===")))
         from modules.vcounter import VCounter
@@ -1073,6 +1167,7 @@ class TUI:
             ("View settings", "settings"),
             ("Telegram setup", "telegram"),
             ("Test Telegram connection", "test_telegram"),
+            ("SSL certificate setup", "ssl"),
             ("Master / Node configuration", "master_node"),
         ]
         if self.config.get_master_enabled():
@@ -1094,6 +1189,9 @@ class TUI:
             input("\n  [Enter to continue] ")
         elif action == "master_node":
             self._setup_master_node()
+            input("\n  [Enter to continue] ")
+        elif action == "ssl":
+            self._setup_ssl()
             input("\n  [Enter to continue] ")
         elif action == "dashboard":
             self._view_dashboard()
