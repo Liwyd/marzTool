@@ -1,10 +1,19 @@
 import json
 import os
 import signal
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+try:
+    import flask  # noqa: F401
+except ImportError:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--break-system-packages", "flask"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
 
 from modules.web_daemon import WEB_PID_FILE, WEB_CONFIG_FILE, TEMP_DIR
 
@@ -52,7 +61,10 @@ def _main():
     config.set_web_port(port)
 
     dash = WebDashboard(db, config, port=port, logger=log)
-    dash.start()
+    if not dash.start():
+        log.error("Flask not installed. Run: pip3 install --break-system-packages flask")
+        PID_FILE.unlink(missing_ok=True)
+        sys.exit(1)
 
     log.info("Web dashboard daemon running on port %d (PID %d)", port, os.getpid())
 

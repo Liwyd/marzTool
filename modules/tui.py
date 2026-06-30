@@ -1,4 +1,6 @@
 import os
+import socket
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -39,6 +41,26 @@ def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
 
+def _get_ip() -> str:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip and not ip.startswith("127."):
+            return ip
+    except Exception:
+        pass
+    try:
+        out = subprocess.check_output(["hostname", "-I"], timeout=3, text=True).strip()
+        for part in out.split():
+            if part and not part.startswith("127."):
+                return part
+    except Exception:
+        pass
+    return "localhost"
+
+
 class TUI:
     def __init__(self):
         self.db = Database()
@@ -49,7 +71,6 @@ class TUI:
     def _banner(self):
         clear_screen()
         from modules.web_daemon import web_daemon_pid, web_daemon_port
-        import socket
         pid = daemon_pid()
         web_pid = web_daemon_pid()
         status = (
@@ -63,11 +84,7 @@ class TUI:
             if ssl_domain:
                 web_url = f"https://{ssl_domain}:{web_port}"
             else:
-                try:
-                    ip = [i for i in socket.gethostbyname_ex(socket.gethostname())[2] if not i.startswith("127.")][0]
-                except Exception:
-                    ip = "localhost"
-                web_url = f"http://{ip}:{web_port}"
+                web_url = f"http://{_get_ip()}:{web_port}"
             web_status = c("green", f"ON  {web_url}")
         else:
             web_status = c("dim", "OFF")
@@ -647,7 +664,6 @@ class TUI:
 
     def _start_web_dashboard(self):
         from modules.web_daemon import web_daemon_pid, spawn_web_daemon
-        import socket
 
         pid = web_daemon_pid()
         if pid:
@@ -664,11 +680,7 @@ class TUI:
             if ssl_domain:
                 url = f"https://{ssl_domain}:{port}"
             else:
-                try:
-                    ip = [i for i in socket.gethostbyname_ex(socket.gethostname())[2] if not i.startswith("127.")][0]
-                except Exception:
-                    ip = "localhost"
-                url = f"http://{ip}:{port}"
+                url = f"http://{_get_ip()}:{port}"
             print()
             print(c("green", f"  Web dashboard started (PID {pid})"))
             print()

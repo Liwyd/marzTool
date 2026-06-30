@@ -1,6 +1,17 @@
 import json
 import logging
-import requests
+import subprocess
+import sys
+
+try:
+    import requests
+except ImportError:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--break-system-packages", "requests"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    import requests
+
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

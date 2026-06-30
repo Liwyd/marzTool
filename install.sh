@@ -92,7 +92,8 @@ echo ""
 echo "Installing MarzTool..."
 
 echo "  Upgrading pip..."
-$PY -m pip install --break-system-packages --upgrade pip 2>/dev/null || true
+$PY -m pip install --break-system-packages --upgrade pip 2>/dev/null || \
+$PY -m pip install --upgrade pip 2>/dev/null || true
 
 if [ -d "$INSTALL_DIR" ]; then
     echo "  Updating existing installation..."
