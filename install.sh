@@ -98,10 +98,10 @@ fi
 
 echo ""
 install_deps
+install_deps_flask
 
 case $INSTALL_TYPE in
     2)
-        install_deps_flask
         setup_master
         ;;
     3)
