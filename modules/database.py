@@ -10,7 +10,7 @@ DB_PATH = Path(__file__).parent.parent / "marztool.db"
 class Database:
     def __init__(self, db_path: str = None):
         self.db_path = db_path or str(DB_PATH)
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._create_tables()
 
     def _create_tables(self):
