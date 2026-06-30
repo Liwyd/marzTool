@@ -183,7 +183,16 @@
         <h2>User Counter Access</h2>
         <div class="form-row">
           <input type="number" id="saTgId" placeholder="Telegram ID" class="input">
-          <input type="text" id="saAdmins" placeholder="Allowed admins (comma separated)" class="input">
+        </div>
+        <div class="form-row mt-8">
+          <label class="form-label">Allowed Admins:</label>
+          <div class="admin-selector" id="saAdminSelector" onclick="openAdminPicker('sa')">
+            <span class="admin-selector-placeholder">Click to select admins...</span>
+            <div class="admin-chips"></div>
+          </div>
+          <input type="hidden" id="saAdmins" value="">
+        </div>
+        <div class="form-row mt-8">
           <button class="btn" onclick="addCounterSubAdmin()">Add</button>
           <button class="btn btn-danger" onclick="removeCounterSubAdmin()">Remove</button>
         </div>
@@ -193,13 +202,36 @@
         <h2>Bandwidth Tracker Access</h2>
         <div class="form-row">
           <input type="number" id="vcSaTgId" placeholder="Telegram ID" class="input">
-          <input type="text" id="vcSaAdmins" placeholder="Allowed admins (comma separated)" class="input">
+        </div>
+        <div class="form-row mt-8">
+          <label class="form-label">Allowed Admins:</label>
+          <div class="admin-selector" id="vcSaAdminSelector" onclick="openAdminPicker('vcSa')">
+            <span class="admin-selector-placeholder">Click to select admins...</span>
+            <div class="admin-chips"></div>
+          </div>
+          <input type="hidden" id="vcSaAdmins" value="">
+        </div>
+        <div class="form-row mt-8">
           <button class="btn" onclick="addVCounterSubAdmin()">Add</button>
           <button class="btn btn-danger" onclick="removeVCounterSubAdmin()">Remove</button>
         </div>
         <div class="table-wrap mt-16"><table id="saVCounterTable"><thead><tr><th>Telegram ID</th><th>Allowed Admins</th></tr></thead><tbody></tbody></table></div>
       </div>
     </section>
+
+    <!-- ADMIN PICKER MODAL -->
+    <div class="modal-overlay" id="adminPickerModal" style="display:none">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>Select Admins</h2>
+          <button class="btn btn-sm" onclick="closeAdminPicker()">&times;</button>
+        </div>
+        <div class="admin-picker-grid" id="adminPickerGrid"></div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="confirmAdminPicker()">Done</button>
+        </div>
+      </div>
+    </div>
 
     <!-- SETTLEMENTS -->
     <section class="page" id="page-settlement">

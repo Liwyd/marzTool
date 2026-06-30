@@ -204,7 +204,7 @@ class TelegramBot:
                     elif is_sub(uid):
                         scope = sub_scope(uid)
                         if scope:
-                            report = counter.get_report(admin_username=scope[0], viewer=viewer_key)
+                            report = counter.get_report(admin_username=scope, viewer=viewer_key)
                         else:
                             report = {"admins": [], "total": 0}
                     else:
@@ -235,7 +235,7 @@ class TelegramBot:
                     elif is_sub(uid):
                         scope = sub_scope(uid)
                         if scope:
-                            report = counter.get_report(admin_username=scope[0], viewer=viewer_key)
+                            report = counter.get_report(admin_username=scope, viewer=viewer_key)
                         else:
                             report = {"admins": [], "total": 0}
                     else:
@@ -752,7 +752,7 @@ class TelegramBot:
                         else:
                             scope = sub_scope(uid)
                             if scope:
-                                report = counter.get_report(admin_username=scope[0], viewer=viewer_key)
+                                report = counter.get_report(admin_username=scope, viewer=viewer_key)
                             else:
                                 report = {"admins": [], "total": 0}
                         if not report["admins"]:
@@ -776,7 +776,7 @@ class TelegramBot:
                         else:
                             scope = sub_scope(uid)
                             if scope:
-                                report = counter.get_report(admin_username=scope[0], viewer=viewer_key)
+                                report = counter.get_report(admin_username=scope, viewer=viewer_key)
                             else:
                                 report = {"admins": [], "total": 0}
                         if not report["admins"]:
@@ -813,13 +813,16 @@ class TelegramBot:
                         elif is_sub(uid):
                             scope = sub_scope(uid)
                             if scope:
-                                admin_name = scope[0]
+                                admin_name = scope
                         if not admin_name:
                             await q.edit_message_text(f"{RD} Cannot determine admin.", reply_markup=counter_menu_kb())
                             return
                         from modules.counter import Counter
                         counter = Counter(None, d)
-                        settled = counter.settle(admin_name, viewer_key)
+                        if isinstance(admin_name, list):
+                            settled = sum(counter.settle(a, viewer_key) for a in admin_name)
+                        else:
+                            settled = counter.settle(admin_name, viewer_key)
                     finally:
                         d.close()
                     if settled <= 0:
@@ -871,7 +874,7 @@ class TelegramBot:
                         elif is_sub(uid):
                             scope = sub_scope(uid)
                             if scope:
-                                report = vc.get_report(admin_username=scope[0], viewer=viewer_key)
+                                report = vc.get_report(admin_username=scope, viewer=viewer_key)
                             else:
                                 report = {"admins": [], "total_bytes": 0}
                         else:
@@ -905,7 +908,7 @@ class TelegramBot:
                         elif is_sub(uid):
                             scope = sub_scope(uid)
                             if scope:
-                                report = vc.get_report(admin_username=scope[0], viewer=viewer_key)
+                                report = vc.get_report(admin_username=scope, viewer=viewer_key)
                             else:
                                 report = {"admins": [], "total_bytes": 0}
                         else:
@@ -938,13 +941,16 @@ class TelegramBot:
                         elif is_sub(uid):
                             scope = sub_scope(uid)
                             if scope:
-                                admin_name = scope[0]
+                                admin_name = scope
                         if not admin_name:
                             await q.edit_message_text(f"{RD} Cannot determine admin.", reply_markup=vcounter_menu_kb())
                             return
                         from modules.vcounter import VCounter
                         vc = VCounter(None, d)
-                        settled = vc.settle(admin_name, viewer_key)
+                        if isinstance(admin_name, list):
+                            settled = sum(vc.settle(a, viewer_key) for a in admin_name)
+                        else:
+                            settled = vc.settle(admin_name, viewer_key)
                         GB = 1024 * 1024 * 1024
                     finally:
                         d.close()

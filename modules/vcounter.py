@@ -40,9 +40,11 @@ class VCounter:
             sum(1 for u in (users or []) if (u.get("data_limit") or 0) > 0),
         )
 
-    def get_report(self, admin_username: str = None, viewer: str = None) -> dict:
+    def get_report(self, admin_username=None, viewer: str = None) -> dict:
         if admin_username:
-            totals = self.db.get_vcounter_totals_for_admins([admin_username])
+            if isinstance(admin_username, str):
+                admin_username = [admin_username]
+            totals = self.db.get_vcounter_totals_for_admins(admin_username)
         else:
             totals = self.db.get_all_vcounter_totals()
         if viewer:

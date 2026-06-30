@@ -501,3 +501,25 @@ select.input{cursor:pointer;}
 .pager-btns{display:flex;align-items:center;gap:4px;}
 .pager-cur{font-size:12px;font-weight:500;padding:0 8px;color:var(--text2);}
 .pager-btns .btn{min-width:32px;padding:4px 8px;font-size:12px;}
+
+/* ADMIN SELECTOR */
+.admin-selector{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;min-height:42px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg2);transition:border-color .2s;}
+.admin-selector:hover{border-color:var(--accent);}
+.admin-selector .admin-selector-placeholder{color:var(--text2);font-size:13px;line-height:26px;}
+.admin-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.admin-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--accent);color:#fff;cursor:default;}
+.admin-chip .chip-remove{cursor:pointer;opacity:.7;font-size:14px;line-height:1;}
+.admin-chip .chip-remove:hover{opacity:1;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.modal-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:24px;min-width:380px;max-width:500px;max-height:70vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.modal-header h2{font-size:16px;margin:0;}
+.modal-footer{margin-top:16px;display:flex;justify-content:flex-end;}
+.admin-picker-grid{display:flex;flex-wrap:wrap;gap:8px;overflow-y:auto;flex:1;padding:4px 0;}
+.admin-picker-item{padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;user-select:none;}
+.admin-picker-item:hover{border-color:var(--accent);background:var(--bg2);}
+.admin-picker-item.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+[data-theme="light"] .admin-picker-item.selected{color:#fff;}
+[data-theme="dark"] .admin-picker-item.selected{color:#fff;}

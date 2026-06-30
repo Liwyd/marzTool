@@ -275,15 +275,74 @@ async function loadUsers(page){
 }
 
 // SUB-ADMINS
-async function loadCounterSubAdmins(){
-  const d=await api('/api/subadmin/counter');
-  if(d.error)return;
-  document.querySelector('#saCounterTable tbody').innerHTML=(d.sub_admins||[]).map(s=>`<tr><td>${s.telegram_id}</td><td>${escHtml(s.allowed_admins)}</td></tr>`).join('')||'<tr><td colspan="2" class="empty">No sub-admins</td></tr>';
+let _pickerTarget='';
+let _pickerSelected=[];
+
+async function _fetchAdmins(){
+  const d=await api('/api/summary');
+  if(d.error)return[];
+  return Object.keys(d.admins||{});
 }
+
+function openAdminPicker(prefix){
+  _pickerTarget=prefix;
+  const hidden=document.getElementById(prefix==='sa'?'saAdmins':'vcSaAdmins');
+  _pickerSelected=hidden.value?hidden.value.split(',').map(s=>s.trim()).filter(Boolean):[];
+  document.getElementById('adminPickerModal').style.display='flex';
+  _renderPicker();
+}
+
+async function _renderPicker(){
+  const admins=await _fetchAdmins();
+  const grid=document.getElementById('adminPickerGrid');
+  if(!admins.length){
+    grid.innerHTML='<p style="color:var(--text2);padding:16px">No admins found. Create configs in Marzban first.</p>';
+    return;
+  }
+  grid.innerHTML=admins.map(a=>{
+    const sel=_pickerSelected.includes(a)?'selected':'';
+    return`<div class="admin-picker-item ${sel}" onclick="togglePickerItem(this,'${escHtml(a)}')">${escHtml(a)}</div>`;
+  }).join('');
+}
+
+function togglePickerItem(el,name){
+  const idx=_pickerSelected.indexOf(name);
+  if(idx>=0){_pickerSelected.splice(idx,1);el.classList.remove('selected');}
+  else{_pickerSelected.push(name);el.classList.add('selected');}
+}
+
+function confirmAdminPicker(){
+  const hidden=document.getElementById(_pickerTarget==='sa'?'saAdmins':'vcSaAdmins');
+  const selector=document.getElementById(_pickerTarget==='sa'?'saAdminSelector':'vcSaAdminSelector');
+  hidden.value=_pickerSelected.join(',');
+  const chips=selector.querySelector('.admin-chips');
+  const ph=selector.querySelector('.admin-selector-placeholder');
+  if(_pickerSelected.length){
+    ph.style.display='none';
+    chips.innerHTML=_pickerSelected.map(a=>`<span class="admin-chip">${escHtml(a)}<span class="chip-remove" onclick="removePickerChip(event,'${escHtml(a)}')">&times;</span></span>`).join('');
+  }else{
+    ph.style.display='';
+    chips.innerHTML='';
+  }
+  document.getElementById('adminPickerModal').style.display='none';
+}
+
+function removePickerChip(e,name){
+  e.stopPropagation();
+  const idx=_pickerSelected.indexOf(name);
+  if(idx>=0)_pickerSelected.splice(idx,1);
+  confirmAdminPicker();
+}
+
+function closeAdminPicker(){
+  document.getElementById('adminPickerModal').style.display='none';
+}
+
 async function addCounterSubAdmin(){
   const tid=document.getElementById('saTgId').value.trim();
-  const admins=document.getElementById('saAdmins').value.trim().split(',').map(s=>s.trim()).filter(Boolean);
+  const admins=document.getElementById('saAdmins').value.split(',').map(s=>s.trim()).filter(Boolean);
   if(!tid)return toast('Enter Telegram ID','error');
+  if(!admins.length)return toast('Select at least one admin','error');
   await api('/api/subadmin/counter/add',{method:'POST',body:JSON.stringify({telegram_id:parseInt(tid),allowed_admins:admins})});
   toast('Added','success');loadCounterSubAdmins();
 }
@@ -300,8 +359,9 @@ async function loadVCounterSubAdmins(){
 }
 async function addVCounterSubAdmin(){
   const tid=document.getElementById('vcSaTgId').value.trim();
-  const admins=document.getElementById('vcSaAdmins').value.trim().split(',').map(s=>s.trim()).filter(Boolean);
+  const admins=document.getElementById('vcSaAdmins').value.split(',').map(s=>s.trim()).filter(Boolean);
   if(!tid)return toast('Enter Telegram ID','error');
+  if(!admins.length)return toast('Select at least one admin','error');
   await api('/api/subadmin/vcounter/add',{method:'POST',body:JSON.stringify({telegram_id:parseInt(tid),allowed_admins:admins})});
   toast('Added','success');loadVCounterSubAdmins();
 }
