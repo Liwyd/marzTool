@@ -28,18 +28,18 @@ check_python() {
 install_deps() {
     echo "  Installing dependencies..."
     $PY -m pip install --break-system-packages --quiet requests 2>/dev/null || \
-    $PY -m pip install --break-system-packages requests 2>/dev/null || \
+    $PY -m pip install --root-user-action=ignore --quiet requests 2>/dev/null || \
     $PY -m pip install --quiet requests 2>/dev/null || \
-    echo "  WARNING: Could not install requests. Run manually: pip install requests"
+    echo "  WARNING: Could not install requests. Run manually: pip3 install requests"
     echo "  Dependencies installed."
 }
 
 install_deps_flask() {
     echo "  Installing Flask (for web dashboard and master mode)..."
     $PY -m pip install --break-system-packages --quiet flask 2>/dev/null || \
-    $PY -m pip install --break-system-packages flask 2>/dev/null || \
+    $PY -m pip install --root-user-action=ignore --quiet flask 2>/dev/null || \
     $PY -m pip install --quiet flask 2>/dev/null || \
-    echo "  WARNING: Could not install Flask. Run manually: pip install flask"
+    echo "  WARNING: Could not install Flask. Run manually: pip3 install flask"
     echo "  Flask installed."
 }
 

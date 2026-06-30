@@ -7,15 +7,34 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-try:
-    import flask  # noqa: F401
-except ImportError:
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--break-system-packages", "flask"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
 
-from modules.web_daemon import WEB_PID_FILE, WEB_CONFIG_FILE, TEMP_DIR
+def _ensure_flask():
+    try:
+        import flask  # noqa: F401
+        return
+    except ImportError:
+        pass
+    py = sys.executable
+    for args in [
+        [py, "-m", "pip", "install", "--break-system-packages", "flask"],
+        [py, "-m", "pip", "install", "--root-user-action=ignore", "flask"],
+        [py, "-m", "pip", "install", "flask"],
+    ]:
+        try:
+            r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+            if r.returncode == 0:
+                try:
+                    import flask  # noqa: F401
+                    return
+                except ImportError:
+                    pass
+        except Exception:
+            continue
+
+
+_ensure_flask()
+
+from modules.web_daemon import WEB_PID_FILE, WEB_CONFIG_FILE, TEMP_DIR  # noqa: E402
 
 
 def _main():

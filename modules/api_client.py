@@ -6,11 +6,20 @@ import sys
 try:
     import requests
 except ImportError:
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--break-system-packages", "requests"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    import requests
+    py = sys.executable
+    for args in [
+        [py, "-m", "pip", "install", "--break-system-packages", "requests"],
+        [py, "-m", "pip", "install", "--root-user-action=ignore", "requests"],
+        [py, "-m", "pip", "install", "requests"],
+    ]:
+        try:
+            subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+            import requests  # noqa: F401
+            break
+        except ImportError:
+            continue
+    else:
+        raise ImportError("requests not installed. Run: pip3 install requests")
 
 import urllib3
 
