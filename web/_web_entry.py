@@ -7,32 +7,55 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+WEB_LOG = Path("/tmp/marztool/web_daemon.log")
+
+
+def _log(msg):
+    WEB_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(WEB_LOG, "a") as f:
+        f.write(f"  {msg}\n")
+
 
 def _ensure_flask():
     try:
         import flask  # noqa: F401
-        return
+        return True
     except ImportError:
         pass
+
     py = sys.executable
-    for args in [
-        [py, "-m", "pip", "install", "--break-system-packages", "flask"],
-        [py, "-m", "pip", "install", "--root-user-action=ignore", "flask"],
-        [py, "-m", "pip", "install", "flask"],
-    ]:
+    _log("Flask not found. Attempting install...")
+
+    methods = [
+        ("pip --break-system-packages", [py, "-m", "pip", "install", "--break-system-packages", "flask"]),
+        ("pip --root-user-action=ignore", [py, "-m", "pip", "install", "--root-user-action=ignore", "flask"]),
+        ("apt python3-flask", ["apt-get", "install", "-y", "python3-flask"]),
+    ]
+
+    for name, cmd in methods:
+        _log(f"Trying {name}...")
         try:
-            r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             if r.returncode == 0:
+                _log(f"  OK")
                 try:
                     import flask  # noqa: F401
-                    return
+                    _log("Flask imported successfully.")
+                    return True
                 except ImportError:
-                    pass
-        except Exception:
-            continue
+                    _log("  Installed but still can't import.")
+            else:
+                _log(f"  Failed (rc={r.returncode}): {r.stderr[:300]}")
+        except Exception as e:
+            _log(f"  Error: {e}")
+
+    _log("All install methods failed.")
+    return False
 
 
-_ensure_flask()
+if not _ensure_flask():
+    _log("Flask is NOT available. Web dashboard cannot start.")
+    sys.exit(1)
 
 from modules.web_daemon import WEB_PID_FILE, WEB_CONFIG_FILE, TEMP_DIR  # noqa: E402
 
@@ -81,7 +104,7 @@ def _main():
 
     dash = WebDashboard(db, config, port=port, logger=log)
     if not dash.start():
-        log.error("Flask not installed. Run: pip3 install --break-system-packages flask")
+        log.error("Flask not installed. Run: sudo apt install python3-flask")
         PID_FILE.unlink(missing_ok=True)
         sys.exit(1)
 
