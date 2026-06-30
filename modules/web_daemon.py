@@ -17,6 +17,7 @@ TEMP_DIR = _get_temp_dir()
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 WEB_PID_FILE = TEMP_DIR / "web_dashboard.pid"
 WEB_CONFIG_FILE = TEMP_DIR / "web_config.json"
+WEB_LOG_FILE = TEMP_DIR / "web_daemon.log"
 
 
 def web_daemon_pid() -> int | None:
@@ -65,6 +66,11 @@ def spawn_web_daemon(config) -> int:
     ssl_key = config.get_ssl_key() or ""
     db_path = str(config.db.db_path)
 
+    if ssl_cert and not os.path.exists(ssl_cert):
+        ssl_cert = ""
+    if ssl_key and not os.path.exists(ssl_key):
+        ssl_key = ""
+
     cfg = {"port": port, "ssl_cert": ssl_cert, "ssl_key": ssl_key, "db_path": db_path}
     WEB_CONFIG_FILE.write_text(json.dumps(cfg), encoding="utf-8")
 
@@ -76,12 +82,14 @@ def spawn_web_daemon(config) -> int:
     if sys.platform == "win32":
         creationflags = 0x00000008
 
+    log_file = TEMP_DIR / "web_daemon.log"
+
     proc = subprocess.Popen(
         cmd,
         cwd=cwd,
         stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=open(log_file, "w"),
+        stderr=subprocess.STDOUT,
         creationflags=creationflags,
     )
     import time
@@ -104,3 +112,14 @@ def stop_web_daemon():
         pass
     WEB_PID_FILE.unlink(missing_ok=True)
     WEB_CONFIG_FILE.unlink(missing_ok=True)
+
+
+def web_daemon_log(lines: int = 30) -> str:
+    if not WEB_LOG_FILE.exists():
+        return ""
+    try:
+        with open(WEB_LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        return "".join(all_lines[-lines:])
+    except Exception:
+        return ""

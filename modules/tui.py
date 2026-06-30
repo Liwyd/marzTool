@@ -1133,6 +1133,7 @@ class TUI:
         if web_pid:
             port = web_daemon_port()
             options.append((f"Stop web dashboard (port {port})", "web_stop"))
+            options.append(("View web dashboard logs", "web_logs"))
         else:
             options.append(("Start web dashboard", "web_start"))
 
@@ -1160,6 +1161,12 @@ class TUI:
             from modules.web_daemon import stop_web_daemon
             stop_web_daemon()
             print(c("green", "\n  Web dashboard stopped."))
+            input("\n  [Enter to continue] ")
+        elif action == "web_logs":
+            from modules.web_daemon import web_daemon_log
+            logs = web_daemon_log(50)
+            print(c("bold", c("cyan", "\n  === Web Dashboard Logs ===")))
+            print(c("dim", logs or "No logs yet."))
             input("\n  [Enter to continue] ")
 
     def _submenu_settings(self):
