@@ -811,6 +811,8 @@ class TUI:
         print(f"  Interval: {interval}s")
 
         try:
+            if self.telegram.app:
+                self.telegram.stop()
             pid = spawn_daemon(self.config)
             print(c("green", f"\n  Daemon started (PID {pid})."))
         except Exception as e:
@@ -948,13 +950,13 @@ class TUI:
             return
         action = options[choice - 1][1]
         if action == "ip_config":
-            self._configure_ip_limit()
+            self._setup_ip_limit()
             input("\n  [Enter to continue] ")
         elif action == "ip_manage":
             self._manage_ip_limits()
             input("\n  [Enter to continue] ")
         elif action == "ip_once":
-            self._run_ip_limiter_once()
+            self._run_ip_limit_once()
             input("\n  [Enter to continue] ")
 
     def _submenu_counter(self):
@@ -1000,7 +1002,7 @@ class TUI:
             return
         action = options[choice - 1][1]
         if action == "vl_config":
-            self._configure_volume_limit()
+            self._setup_volume_limit()
             input("\n  [Enter to continue] ")
         elif action == "vl_exempt_list":
             self._manage_exempt_list()
@@ -1027,7 +1029,9 @@ class TUI:
             self._start_daemon()
             input("\n  [Enter to continue] ")
         elif action == "daemon_stop":
-            self._stop_daemon()
+            stop_daemon()
+            if self.config.get_telegram_enabled():
+                self.telegram.start()
             input("\n  [Enter to continue] ")
         elif action == "daemon_logs":
             view_logs()
