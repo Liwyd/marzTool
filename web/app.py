@@ -575,7 +575,7 @@ class WebDashboard:
         if ssl_cert and ssl_key and os.path.exists(ssl_cert) and os.path.exists(ssl_key):
             ssl_context = (ssl_cert, ssl_key)
             self.log.info("SSL enabled with cert=%s", ssl_cert)
-        self.app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False, ssl_context=ssl_context)
+        self.app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False, threaded=True, ssl_context=ssl_context)
 
     def stop(self):
         self.log.info("Web dashboard stopping.")

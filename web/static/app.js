@@ -83,18 +83,6 @@ function paginate(arr,key,page){
   return{items:arr.slice(start,start+PAGE_SIZE),page:cp,totalPages,total};
 }
 
-function renderPager(key,total,totalPages,cb){
-  if(totalPages<=1)return'';
-  let h=`<div class="pager"><span class="pager-info">${total} items</span><div class="pager-btns">`;
-  h+=`<button class="btn btn-sm" onclick="${cb}(1)" ${page===1?'disabled':''}>&laquo;</button>`;
-  h+=`<button class="btn btn-sm" onclick="${cb}(${Math.max(1,pagState[key].page-1)})" ${pagState[key].page===1?'disabled':''}>&lsaquo;</button>`;
-  h+=`<span class="pager-cur">${pagState[key].page} / ${totalPages}</span>`;
-  h+=`<button class="btn btn-sm" onclick="${cb}(${Math.min(totalPages,pagState[key].page+1)})" ${pagState[key].page===totalPages?'disabled':''}>&rsaquo;</button>`;
-  h+=`<button class="btn btn-sm" onclick "${cb}(${totalPages})" ${pagState[key].page===totalPages?'disabled':''}>&raquo;</button>`;
-  h+=`</div></div>`;
-  return h;
-}
-
 function pagerHtml(key,total,totalPages,fnName){
   if(totalPages<=1)return'';
   const cp=pagState[key].page;
