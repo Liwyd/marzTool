@@ -57,6 +57,24 @@ python3 marzTool.py --master # Start master API server
 2. **Nodes**: Install on other servers, run TUI, configure Master/Node > Node mode with master URL
 3. **Daemon**: Start daemon on all servers (`python3 marzTool.py --auto`)
 
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/liwyd/marzTool/main/uninstall.sh | bash
+```
+
+Or run from within the tool:
+
+```bash
+marztool --uninstall
+```
+
+This will:
+- Stop the daemon and web dashboard processes
+- Remove the `/usr/local/bin/marztool` command
+- Delete the `/opt/marztool` directory
+- Clean up all temp files from `/tmp/marztool`
+
 ## Requirements
 
 - Python 3.10+

@@ -47,6 +47,73 @@ def main():
         stop_daemon()
         return
 
+    if "--uninstall" in args:
+        import shutil
+        install_dir = os.path.dirname(os.path.abspath(__file__))
+        symlink = "/usr/local/bin/marztool"
+        temp_dir = "/tmp/marztool"
+
+        print("========================================")
+        print("  MarzTool Uninstaller")
+        print("========================================")
+        print()
+
+        # Stop daemon
+        print("  Stopping daemon...")
+        stop_daemon()
+
+        # Stop web dashboard
+        try:
+            from modules.web_daemon import stop_web_daemon, web_daemon_pid
+            if web_daemon_pid():
+                stop_web_daemon()
+                print("  Web dashboard stopped.")
+        except Exception:
+            pass
+
+        # Kill any lingering processes
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", "marztool|_daemon_entry|_web_entry"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.stdout.strip():
+                for pid in result.stdout.strip().split("\n"):
+                    try:
+                        os.kill(int(pid), 9)
+                    except Exception:
+                        pass
+                print("  Remaining processes killed.")
+        except Exception:
+            pass
+
+        # Remove symlink
+        if os.path.exists(symlink):
+            os.remove(symlink)
+            print(f"  Removed: {symlink}")
+
+        # Remove temp directory
+        if os.path.isdir(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            print(f"  Removed: {temp_dir}")
+
+        # Remove install directory (last, since we're running from it)
+        print(f"  Removing: {install_dir}")
+        print()
+        print("  MarzTool has been completely uninstalled.")
+        print()
+
+        # Self-delete: schedule removal after exit
+        import atexit
+        def _self_remove():
+            try:
+                shutil.rmtree(install_dir, ignore_errors=True)
+            except Exception:
+                pass
+        atexit.register(_self_remove)
+        sys.exit(0)
+
     if "--logs" in args:
         view_logs()
         return
