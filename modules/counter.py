@@ -90,7 +90,9 @@ class Counter:
             total_traffic = max(used_traffic, lifetime_used)
 
             existing = self.db.get_counter_user(username)
-            if existing and existing.get("last_used_traffic", 0) > 0:
+            if not existing:
+                continue
+            if existing.get("last_used_traffic", 0) > 0:
                 prev = existing["last_used_traffic"]
                 if prev > self.TRAFFIC_THRESHOLD and total_traffic < prev * 0.1:
                     self.db.add_reset_notification(
@@ -103,7 +105,7 @@ class Counter:
 
             self.db.upsert_counter_user(
                 username, admin_username,
-                existing["counted_at"] if existing else now,
+                existing["counted_at"],
                 user.get("expire"),
                 user.get("created_at", ""),
                 total_traffic,
