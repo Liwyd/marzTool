@@ -71,8 +71,9 @@ def main():
         except Exception:
             pass
 
-        # Kill any lingering processes
+        # Kill any lingering processes (exclude current PID)
         import subprocess
+        current_pid = str(os.getpid())
         try:
             result = subprocess.run(
                 ["pgrep", "-f", "marztool|_daemon_entry|_web_entry"],
@@ -80,6 +81,8 @@ def main():
             )
             if result.stdout.strip():
                 for pid in result.stdout.strip().split("\n"):
+                    if pid == current_pid:
+                        continue
                     try:
                         os.kill(int(pid), 9)
                     except Exception:

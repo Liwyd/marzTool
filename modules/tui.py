@@ -744,8 +744,9 @@ class TUI:
         except Exception:
             pass
 
-        # Kill remaining processes
+        # Kill remaining processes (exclude current PID)
         print(c("dim", "  Checking for remaining processes..."))
+        current_pid = str(os.getpid())
         try:
             result = subprocess.run(
                 ["pgrep", "-f", "marztool|_daemon_entry|_web_entry"],
@@ -753,6 +754,8 @@ class TUI:
             )
             if result.stdout.strip():
                 for pid in result.stdout.strip().split("\n"):
+                    if pid == current_pid:
+                        continue
                     try:
                         os.kill(int(pid), 9)
                     except Exception:

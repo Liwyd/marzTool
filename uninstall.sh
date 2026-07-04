@@ -54,7 +54,7 @@ fi
 
 # --- Step 3: Kill any lingering marztool python processes ---
 echo "  [3/5] Checking for remaining marztool processes..."
-REMAINING=$(pgrep -f "marztool|_daemon_entry|_web_entry" 2>/dev/null || true)
+REMAINING=$(pgrep -f "marztool|_daemon_entry|_web_entry" 2>/dev/null | grep -v "^$$\$" || true)
 if [ -n "$REMAINING" ]; then
     echo "    Found remaining processes, killing them..."
     for p in $REMAINING; do
