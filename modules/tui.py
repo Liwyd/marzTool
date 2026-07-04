@@ -715,6 +715,81 @@ class TUI:
         else:
             print(c("red", f"  Update failed:\n{result.stderr.strip()}"))
 
+    def _uninstall_tool(self):
+        import shutil
+        import subprocess
+        install_dir = os.path.dirname(os.path.abspath(__file__)).replace("\\", "/").rsplit("/modules", 1)[0]
+        symlink = "/usr/local/bin/marztool"
+        temp_dir = "/tmp/marztool"
+
+        print(c("bold", c("cyan", "\n  === Uninstall MarzTool ===")))
+        print(c("red", "  This will completely remove MarzTool from this server."))
+        print(c("dim", "  All files, database, configs, and logs will be deleted.\n"))
+
+        confirm = self._ask("Type YES to confirm uninstall", "")
+        if confirm != "YES":
+            print(c("yellow", "  Aborted."))
+            return
+
+        # Stop daemon
+        print(c("dim", "\n  Stopping daemon..."))
+        stop_daemon()
+
+        # Stop web dashboard
+        try:
+            from modules.web_daemon import stop_web_daemon, web_daemon_pid
+            if web_daemon_pid():
+                stop_web_daemon()
+                print(c("dim", "  Web dashboard stopped."))
+        except Exception:
+            pass
+
+        # Kill remaining processes
+        print(c("dim", "  Checking for remaining processes..."))
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", "marztool|_daemon_entry|_web_entry"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.stdout.strip():
+                for pid in result.stdout.strip().split("\n"):
+                    try:
+                        os.kill(int(pid), 9)
+                    except Exception:
+                        pass
+                print(c("dim", "  Remaining processes killed."))
+        except Exception:
+            pass
+
+        # Remove symlink
+        if os.path.exists(symlink):
+            os.remove(symlink)
+            print(c("dim", f"  Removed: {symlink}"))
+
+        # Remove temp dir
+        if os.path.isdir(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            print(c("dim", f"  Removed: {temp_dir}"))
+
+        # Self-delete
+        print(c("dim", f"  Removing: {install_dir}"))
+        print()
+
+        def _self_remove():
+            try:
+                shutil.rmtree(install_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+        import atexit
+        atexit.register(_self_remove)
+
+        print(c("green", "  MarzTool has been completely uninstalled."))
+        print(c("dim", "  If iptables rules were added, run: sudo iptables -F\n"))
+
+        self.db.close()
+        sys.exit(0)
+
     def _setup_ssl(self):
         import subprocess as _sp
         import os
@@ -1002,6 +1077,7 @@ class TUI:
                 ("Services (daemon / web)", "submenu_services"),
                 ("Settings & Telegram", "submenu_settings"),
                 ("Update (git pull)", "update"),
+                ("Uninstall MarzTool", "uninstall"),
                 ("Exit", "exit"),
             ]
 
@@ -1052,6 +1128,9 @@ class TUI:
             elif action == "update":
                 self._update_tool()
                 input("\n  [Enter to continue] ")
+
+            elif action == "uninstall":
+                self._uninstall_tool()
 
     def _submenu_flow(self):
         options = [
