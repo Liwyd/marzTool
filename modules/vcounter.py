@@ -11,8 +11,10 @@ class VCounter:
     def sync(self, users: list = None):
         if users is None:
             users = self.client.get_all_users()
+        now = datetime.now(timezone.utc).isoformat()
 
-        admin_totals = {}
+        added_count = 0
+        updated_count = 0
 
         for user in users:
             username = user.get("username", "")
@@ -27,17 +29,35 @@ class VCounter:
             if data_limit == 0:
                 continue
 
-            if admin_username not in admin_totals:
-                admin_totals[admin_username] = 0
-            admin_totals[admin_username] += data_limit
+            created_at = user.get("created_at", "")
+            existing = self.db.get_vcounter_user(username, created_at)
 
-        for admin_username, total_bytes in admin_totals.items():
-            self.db.set_vcounter_total(admin_username, total_bytes)
+            if not existing:
+                self.db.add_vcounter_volume(admin_username, data_limit)
+                self.db.upsert_vcounter_user(
+                    username, created_at, admin_username,
+                    data_limit, 0, 0, now,
+                )
+                added_count += 1
+                self.log.info("VCounter: counted %s (admin=%s, %.1f GB)",
+                              username, admin_username, data_limit / (1024**3))
+            else:
+                prev_limit = existing.get("initial_data_limit", 0)
+                if data_limit > prev_limit:
+                    diff = data_limit - prev_limit
+                    self.db.add_vcounter_volume(admin_username, diff)
+                    self.db.upsert_vcounter_user(
+                        username, created_at, admin_username,
+                        data_limit, existing.get("counted_traffic", 0),
+                        existing.get("prev_traffic", 0), now,
+                    )
+                    updated_count += 1
+                    self.log.info("VCounter: updated %s (admin=%s, +%.1f GB)",
+                                  username, admin_username, diff / (1024**3))
 
         self.log.info(
-            "VCounter sync complete. %d admins, %d configs with data_limit.",
-            len(admin_totals),
-            sum(1 for u in (users or []) if (u.get("data_limit") or 0) > 0),
+            "VCounter sync complete. %d new, %d updated.",
+            added_count, updated_count,
         )
 
     def get_report(self, admin_username=None, viewer: str = None) -> dict:

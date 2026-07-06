@@ -537,6 +537,12 @@ class Database:
         cursor.execute("DELETE FROM vcounter_totals WHERE admin_username = ?", (admin_username,))
         self.conn.commit()
 
+    def reset_all_vcounter(self):
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM vcounter_users")
+        cursor.execute("DELETE FROM vcounter_totals")
+        self.conn.commit()
+
     def settle_vcounter(self, admin_username: str, settled_by: str):
         from datetime import datetime, timezone
         total = self.get_vcounter_total(admin_username)
