@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 
 class Counter:
-    TRAFFIC_THRESHOLD = 500 * 1024 * 1024
+    TRAFFIC_THRESHOLD = 0
     EXPIRE_GAP_THRESHOLD = 7 * 24 * 60 * 60
 
     def __init__(self, client, db, logger: logging.Logger = None):

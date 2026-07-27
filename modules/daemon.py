@@ -145,8 +145,12 @@ def view_logs(lines: int = 40):
 def _daemon_worker(config_dict: dict):
     log = _make_logger("daemon", to_file=True)
 
+    tg_bot_ref = [None]
+
     def _exit(sig, _):
         log.info("Signal %s -- shutting down.", sig)
+        if tg_bot_ref[0]:
+            tg_bot_ref[0].stop()
         PID_FILE.unlink(missing_ok=True)
         sys.exit(0)
 
@@ -228,10 +232,12 @@ def _daemon_worker(config_dict: dict):
             log.error("Node sync init error: %s", e)
 
     tg_bot = None
+    tg_bot_ref[0] = None
     if telegram_enabled:
         try:
             from modules.telegram_bot import TelegramBot
             tg_bot = TelegramBot(config, log)
+            tg_bot_ref[0] = tg_bot
             if tg_bot.start():
                 log.info("Telegram bot started (polling)")
             else:

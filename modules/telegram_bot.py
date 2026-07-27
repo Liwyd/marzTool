@@ -13,6 +13,7 @@ class TelegramBot:
         self.app = None
         self._thread = None
         self._loop = None
+        self._shutdown_event = None
 
     def start(self):
         if not self.config.get_telegram_enabled():
@@ -722,7 +723,7 @@ class TelegramBot:
                     return
 
                 if data == "menu_counter":
-                    text = f"{CY} Counter Menu\n{'='*28}\n500MB threshold | 7-day gap\n\nChoose an option:"
+                    text = f"{CY} Counter Menu\n{'='*28}\n\nChoose an option:"
                     await q.edit_message_text(text, reply_markup=counter_menu_kb())
                     return
 
@@ -1261,18 +1262,26 @@ class TelegramBot:
             app.add_handler(CallbackQueryHandler(cb_handler))
 
             async def _run_async():
+                self._shutdown_event = asyncio.Event()
                 await app.initialize()
                 await app.start()
                 await app.updater.start_polling(drop_pending_updates=True)
                 self.log.info("Telegram bot polling is ACTIVE")
-                stop_event = asyncio.Event()
-                await stop_event.wait()
+                await self._shutdown_event.wait()
+                await app.updater.stop()
+                await app.stop()
+                await app.shutdown()
 
             def _run():
                 self._loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(self._loop)
                 try:
                     self._loop.run_until_complete(_run_async())
+                except (RuntimeError, asyncio.CancelledError) as e:
+                    if "Event loop stopped" in str(e) or isinstance(e, asyncio.CancelledError):
+                        self.log.info("Telegram bot stopped.")
+                    else:
+                        self.log.error("Telegram bot crashed: %s", e)
                 except Exception as e:
                     self.log.error("Telegram bot crashed: %s", e)
 
@@ -1290,10 +1299,15 @@ class TelegramBot:
 
     def stop(self):
         if self._loop and self._loop.is_running():
+            if self._shutdown_event and not self._shutdown_event.is_set():
+                self._loop.call_soon_threadsafe(self._shutdown_event.set)
+            import time as _t
+            _t.sleep(1)
             self._loop.call_soon_threadsafe(self._loop.stop)
         self.app = None
         self._thread = None
         self._loop = None
+        self._shutdown_event = None
 
     def test_connection(self) -> tuple[bool, str]:
         token = self.config.get_telegram_token()
