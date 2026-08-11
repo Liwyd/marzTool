@@ -165,6 +165,7 @@ def _daemon_worker(config_dict: dict):
     from modules.counter import Counter
     from modules.database import Database
     from modules.config import Config
+    from modules.auto_inbound_updater import AutoInboundUpdater
 
     db = Database(config_dict["db_path"])
     config = Config(db)
@@ -181,10 +182,12 @@ def _daemon_worker(config_dict: dict):
     vcounter_enabled = config_dict.get("vcounter_enabled", False)
     master_enabled = config_dict.get("master_enabled", False)
     node_enabled = config_dict.get("node_enabled", False)
+    auto_inbound_enabled = config_dict.get("auto_inbound_enabled", False)
+    auto_inbound_reference = config_dict.get("auto_inbound_reference", "")
 
     log.info(
-        "Daemon started. PID=%d  server=%s  flow=%s  ip_limit=%s  counter=%s  telegram=%s  volume_limit=%s  vcounter=%s  master=%s  node=%s  interval=%ds",
-        os.getpid(), server_url, flow_enabled, ip_limit_enabled, counter_enabled, telegram_enabled, volume_limit_enabled, vcounter_enabled, master_enabled, node_enabled, interval,
+        "Daemon started. PID=%d  server=%s  flow=%s  ip_limit=%s  counter=%s  telegram=%s  volume_limit=%s  vcounter=%s  master=%s  node=%s  auto_inbound=%s  interval=%ds",
+        os.getpid(), server_url, flow_enabled, ip_limit_enabled, counter_enabled, telegram_enabled, volume_limit_enabled, vcounter_enabled, master_enabled, node_enabled, auto_inbound_enabled, interval,
     )
 
     client = MarzbanClient(server_url, log)
@@ -199,6 +202,7 @@ def _daemon_worker(config_dict: dict):
     flow_setter = FlowSetter(client, log)
     ip_limiter = IPLimiter(client, config, log)
     counter = Counter(client, db, log)
+    auto_inbound = AutoInboundUpdater(client, log)
 
     master_api = None
     if master_enabled:
@@ -357,6 +361,19 @@ def _daemon_worker(config_dict: dict):
             except Exception as e:
                 log.error("Flow cycle error: %s", e)
 
+        if auto_inbound_enabled and auto_inbound_reference:
+            try:
+                total, needed, updated, errors = auto_inbound.process_cycle(auto_inbound_reference, users=users)
+                if needed == 0:
+                    log.info("AutoInbound: All %d users synced with '%s'.", total, auto_inbound_reference)
+                else:
+                    log.info(
+                        "AutoInbound: %d/%d needed | updated=%d | errors=%d (ref=%s)",
+                        needed, total, len(updated), len(errors), auto_inbound_reference,
+                    )
+            except Exception as e:
+                log.error("AutoInbound cycle error: %s", e)
+
         if volume_limiter is not None:
             try:
                 disabled = volume_limiter.process_cycle(users=users)
@@ -476,6 +493,8 @@ def spawn_daemon(config):
         "node_name": config.get_node_name() or "node",
         "node_token": config.get_node_token() or "",
         "master_url": config.get_master_url() or "",
+        "auto_inbound_enabled": config.get_auto_inbound_enabled(),
+        "auto_inbound_reference": config.get_auto_inbound_reference() or "",
     }
 
     CONFIG_FILE.write_text(json.dumps(config_dict), encoding="utf-8")

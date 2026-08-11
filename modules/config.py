@@ -162,6 +162,19 @@ class Config:
     def set_master_url(self, url: str):
         self.db.set_setting("master_url", url)
 
+    def get_auto_inbound_enabled(self) -> bool:
+        val = self.db.get_setting("auto_inbound_enabled")
+        return val == "true" if val is not None else False
+
+    def set_auto_inbound_enabled(self, enabled: bool):
+        self.db.set_setting("auto_inbound_enabled", "true" if enabled else "false")
+
+    def get_auto_inbound_reference(self) -> str | None:
+        return self.db.get_setting("auto_inbound_reference")
+
+    def set_auto_inbound_reference(self, username: str):
+        self.db.set_setting("auto_inbound_reference", username)
+
     def get_web_enabled(self) -> bool:
         val = self.db.get_setting("web_enabled")
         return val == "true" if val is not None else False

@@ -32,6 +32,7 @@ class MarzbanClient:
         self.session = requests.Session()
         self.session.headers["Accept"] = "application/json"
         self.session.verify = False
+        self.session.trust_env = False
         self.log = logger or logging.getLogger("marzban_client")
 
     def _flip_scheme(self, url: str) -> str:

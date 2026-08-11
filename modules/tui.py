@@ -18,6 +18,7 @@ from .daemon import (
 from .flow_setter import FlowSetter
 from .ip_limiter import IPLimiter
 from .telegram_bot import TelegramBot
+from .auto_inbound_updater import AutoInboundUpdater
 
 
 _C = {
@@ -101,6 +102,8 @@ class TUI:
         vl_gb = self.config.get_volume_limit_gb()
         vl_status = c("green", f"ON ({vl_gb}GB)") if self.config.get_volume_limit_enabled() else c("dim", "OFF")
         vc_status = c("green", "ON") if self.config.get_vcounter_enabled() else c("dim", "OFF")
+        ai_ref = self.config.get_auto_inbound_reference() or "?"
+        ai_status = c("green", f"ON ({ai_ref})") if self.config.get_auto_inbound_enabled() else c("dim", "OFF")
 
         print(c("bold", c("cyan", "=" * 65)))
         print(c("bold", c("cyan", "  MarzTool - Marzban Management Suite")))
@@ -109,7 +112,7 @@ class TUI:
         print(f"  Web UI  : {web_status}")
         print(f"  Flow    : {flow_display}")
         print(f"  IP Limit: {ip_status}    Telegram: {tg_status}")
-        print(f"  Traffic : {vl_status}")
+        print(f"  Traffic : {vl_status}    Auto Inbound: {ai_status}")
         ct_on = self.config.get_counter_enabled()
         vc_on = self.config.get_vcounter_enabled()
         if ct_on:
@@ -559,10 +562,12 @@ class TUI:
         ct = self.config.get_counter_enabled()
         vl = self.config.get_volume_limit_enabled()
         vc = self.config.get_vcounter_enabled()
+        ai = self.config.get_auto_inbound_enabled()
 
         options = [
             (f"Flow updater:  {c('green' if flow else 'dim', 'ON' if flow else 'OFF')}", "flow"),
             (f"IP limiter:    {c('green' if ip else 'dim', 'ON' if ip else 'OFF')}", "ip"),
+            (f"Auto Inbound:  {c('green' if ai else 'dim', 'ON' if ai else 'OFF')}", "ai"),
             (f"Telegram:      {c('green' if tg else 'dim', 'ON' if tg else 'OFF')}", "tg"),
             (f"User Counter:  {c('green' if ct else 'dim', 'ON' if ct else 'OFF')}", "ct"),
             (f"Traffic Limit: {c('green' if vl else 'dim', 'ON' if vl else 'OFF')}", "vl"),
@@ -592,6 +597,13 @@ class TUI:
             else:
                 self.telegram.stop()
             print(c("green", f"\n  Telegram {'enabled' if not tg else 'disabled'}."))
+        elif choice == 3:
+            self.config.set_auto_inbound_enabled(not ai)
+            ref = self.config.get_auto_inbound_reference()
+            if not ai and not ref:
+                print(c("yellow", "\n  Auto Inbound enabled, but reference user not configured. Set it in the Auto Inbound submenu."))
+            else:
+                print(c("green", f"\n  Auto Inbound Updater {'enabled' if not ai else 'disabled'}."))
         elif choice == 4:
             if not ct and vc:
                 print(c("yellow", "\n  Cannot enable User Counter while Bandwidth Tracker is ON. Bandwidth Tracker disabled first."))
@@ -1015,9 +1027,10 @@ class TUI:
         ct = self.config.get_counter_enabled()
         vl = self.config.get_volume_limit_enabled()
         vc = self.config.get_vcounter_enabled()
+        ai = self.config.get_auto_inbound_enabled()
 
-        if not flow and not ip and not ct and not vl and not vc:
-            print(c("yellow", "\n  No features enabled. Enable flow, IP limit, counter, volume limit, or vcounter first."))
+        if not flow and not ip and not ct and not vl and not vc and not ai:
+            print(c("yellow", "\n  No features enabled. Enable flow, IP limit, counter, volume limit, vcounter, or auto inbound first."))
             return
 
         print(c("bold", c("cyan", "\n  === Start Daemon ===")))
@@ -1026,7 +1039,8 @@ class TUI:
 
         flow_val = self.config.get_flow_value()
         flow_label = f"ON ({flow_val})" if flow else "OFF"
-        print(f"  Features: Flow={flow_label}  IP Limit={'ON' if ip else 'OFF'}  Counter={'ON' if ct else 'OFF'}  Traffic={'ON' if vl else 'OFF'}  Bandwidth={'ON' if vc else 'OFF'}")
+        ai_ref = self.config.get_auto_inbound_reference() or "?"
+        print(f"  Features: Flow={flow_label}  IP Limit={'ON' if ip else 'OFF'}  AutoInbound={'ON (' + ai_ref + ')' if ai else 'OFF'}  Counter={'ON' if ct else 'OFF'}  Traffic={'ON' if vl else 'OFF'}  Bandwidth={'ON' if vc else 'OFF'}")
         print(f"  Interval: {interval}s")
 
         try:
@@ -1058,6 +1072,8 @@ class TUI:
             "Traffic limit enabled": str(self.config.get_volume_limit_enabled()),
             "Traffic limit (GB)": str(self.config.get_volume_limit_gb()),
             "Bandwidth tracker enabled": str(self.config.get_vcounter_enabled()),
+            "Auto inbound enabled": str(self.config.get_auto_inbound_enabled()),
+            "Auto inbound reference": self.config.get_auto_inbound_reference() or "not set",
         }
         for key, val in settings.items():
             print(f"  {c('dim', key + ':'):<35} {val}")
@@ -1073,6 +1089,7 @@ class TUI:
                 ("Toggle features on/off", "toggle"),
                 ("VLESS Flow", "submenu_flow"),
                 ("IP Limiter", "submenu_ip"),
+                ("Auto Inbound Updater", "submenu_auto_inbound"),
                 ("User Counter", "submenu_counter"),
                 ("Bandwidth Tracker", "submenu_bw"),
                 ("Traffic Limiter", "submenu_traffic"),
@@ -1108,6 +1125,9 @@ class TUI:
 
             elif action == "submenu_ip":
                 self._submenu_ip()
+
+            elif action == "submenu_auto_inbound":
+                self._submenu_auto_inbound()
 
             elif action == "submenu_counter":
                 self._submenu_counter()
@@ -1176,6 +1196,85 @@ class TUI:
         elif action == "ip_once":
             self._run_ip_limit_once()
             input("\n  [Enter to continue] ")
+
+    def _submenu_auto_inbound(self):
+        options = [
+            ("Configure auto inbound updater", "ai_config"),
+            ("Run now (sync inbounds from reference user)", "ai_once"),
+            ("Back", "back"),
+        ]
+        choice = self._menu(options)
+        if choice == -1:
+            return
+        action = options[choice][1]
+        if action == "ai_config":
+            self._configure_auto_inbound()
+            input("\n  [Enter to continue] ")
+        elif action == "ai_once":
+            self._run_auto_inbound_once()
+            input("\n  [Enter to continue] ")
+
+    def _configure_auto_inbound(self):
+        print(c("bold", c("cyan", "\n  === Auto Inbound Updater Configuration ===")))
+        print("  Syncs inbounds from a reference user to all other users.")
+        print("  e.g. If reference user 'khodam_ali' has Vmess + VLESS,")
+        print("  all other users will get those same inbounds added.")
+        print(c("dim", "  (User UUIDs and client IDs are NOT modified)"))
+        print()
+
+        enabled = self.config.get_auto_inbound_enabled()
+        current = "ON" if enabled else "OFF"
+        print(f"  Status: {c('green' if enabled else 'dim', current)}")
+
+        enable = self._ask("Enable auto inbound updater? (y/n)", "y" if enabled else "n")
+        self.config.set_auto_inbound_enabled(enable.lower() == "y")
+
+        if enable.lower() == "y":
+            saved_ref = self.config.get_auto_inbound_reference() or ""
+            ref = self._ask("Reference username (the template user)", saved_ref)
+            if ref:
+                self.config.set_auto_inbound_reference(ref)
+                print(c("green", f"\n  Auto inbound updater enabled. Reference: {ref}"))
+            else:
+                print(c("yellow", "\n  Reference username is required."))
+                self.config.set_auto_inbound_enabled(False)
+        else:
+            print(c("green", "\n  Auto inbound updater disabled."))
+
+    def _run_auto_inbound_once(self):
+        if not self._ensure_client():
+            return
+
+        ref = self.config.get_auto_inbound_reference()
+        if not ref:
+            print(c("yellow", "\n  Reference username not configured. Configure first."))
+            return
+
+        print(c("bold", c("cyan", "\n  === Run Auto Inbound Updater (One-shot) ===")))
+        print(f"  Reference user: {ref}")
+        print(c("dim", "  This will add missing inbounds from the reference user to all others."))
+
+        confirm = self._ask("Proceed? (y/n)", "y")
+        if confirm.lower() != "y":
+            return
+
+        updater = AutoInboundUpdater(self.client)
+        total, needed, updated, errors = updater.run_once(ref)
+        print()
+        print(c("cyan", "=" * 50))
+        print(f"  Total users         : {total}")
+        print(f"  Needed update       : {needed}")
+        print(f"  Successfully updated: {len(updated)}")
+        print(f"  Errors              : {len(errors)}")
+        if updated:
+            print(f"\n  Updated:")
+            for n in updated:
+                print(f"    - {n}")
+        if errors:
+            print(f"\n  Failed:")
+            for n in errors:
+                print(f"    - {n}")
+        print(c("cyan", "=" * 50))
 
     def _submenu_counter(self):
         options = [
